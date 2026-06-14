@@ -76,7 +76,9 @@ const SupabaseAdapter = {
 
   /**
    * Thêm một kỷ niệm mới
-   * @param {{title:string, media_url:string, media_type:string, date:string, description:string}} record
+   * Chỉ gửi đúng 3 cột có trong bảng: title, media_url, media_type
+   * (id và created_at do Supabase tự sinh)
+   * @param {{title:string, media_url:string, media_type:string}} record
    * @returns {Promise<Object>}
    */
   async insert(record) {
@@ -90,7 +92,8 @@ const SupabaseAdapter = {
     );
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
-      throw new Error(err.message || `Supabase INSERT thất bại: ${res.status}`);
+      const detail = err.message || err.details || err.hint || `HTTP ${res.status}`;
+      throw new Error(`Supabase INSERT thất bại: ${detail}`);
     }
     const rows = await res.json();
     return rows[0];
@@ -155,14 +158,18 @@ const StorageAdapter = {
 
   /** Chuyển row Supabase → object memory dùng trong app */
   _rowToMemory(row) {
+    // Bảng chỉ có: id, title, media_url, media_type, created_at
+    // date/description không có trong bảng → dùng giá trị mặc định
+    const dateStr = row.date
+      || (row.created_at ? row.created_at.substring(0, 10) : '');
     return {
-      id: String(row.id),           // Giữ id là string trong app
-      supabaseId: row.id,           // Lưu id gốc bigint để PATCH/DELETE
+      id: String(row.id),
+      supabaseId: row.id,
       title: row.title || '',
-      date: row.date || '',
+      date: dateStr,
       description: row.description || '',
       mediaType: row.media_type || 'image',
-      mediaData: row.media_url || null,   // URL Cloudinary (dùng trực tiếp làm src)
+      mediaData: row.media_url || null,
       hasMedia: !!row.media_url,
       createdAt: row.created_at,
     };
@@ -205,7 +212,7 @@ async function uploadToCloudinary(file) {
 
 /**
  * Lưu metadata kỷ niệm vào Supabase
- * @param {{title, media_url, media_type, date, description}} record
+ * @param {{title, media_url, media_type}} record — chỉ 3 cột có trong bảng
  * @returns {Promise<Object>} row đã tạo
  */
 async function saveMemoryToSupabase(record) {
@@ -654,8 +661,6 @@ function closeMemoryModal() {
 
 async function saveMemory() {
   const title = document.getElementById('memoryTitle').value.trim();
-  const date  = document.getElementById('memoryDate').value;
-  const description = document.getElementById('memoryDescription').value.trim();
 
   if (!title) {
     showToast('⚠️ Vui lòng nhập tiêu đề!', 'error');
@@ -663,11 +668,9 @@ async function saveMemory() {
     return;
   }
 
-  if (!date) {
-    showToast('⚠️ Vui lòng chọn ngày!', 'error');
-    document.getElementById('memoryDate').focus();
-    return;
-  }
+  // Lấy date và description cho hiển thị UI (không gửi lên Supabase — bảng không có cột này)
+  const date = document.getElementById('memoryDate').value;
+  const description = document.getElementById('memoryDescription').value.trim();
 
   // Vô hiệu hóa nút Lưu để tránh double-submit
   const saveBtn = document.querySelector('.memory-modal-footer .btn-primary');
@@ -687,17 +690,18 @@ async function saveMemory() {
 
     if (AppState.editingId && AppState.editingSupabaseId) {
       // ── CẬP NHẬT kỷ niệm hiện có ──
-      const updates = { title, date, description, media_type: mediaType };
+      // Chỉ cập nhật các cột thực sự có trong bảng: title, media_url, media_type
+      const updates = { title, media_type: mediaType };
       if (AppState.currentMediaFile) updates.media_url = mediaUrl;
 
       await SupabaseAdapter.update(AppState.editingSupabaseId, updates);
       showToast('✓ Đã cập nhật kỷ niệm!', 'success');
     } else {
       // ── THÊM KỶ NIỆM MỚI ──
+      // Chỉ gửi các cột tồn tại trong bảng: title, media_url, media_type
+      // (id và created_at được Supabase tự tạo)
       await saveMemoryToSupabase({
         title,
-        date,
-        description,
         media_url: mediaUrl || '',
         media_type: mediaType,
       });
