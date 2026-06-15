@@ -1095,3 +1095,465 @@ if (document.readyState === 'loading') {
 } else {
   init();
 }
+// ============================================================
+// MULTI-MEDIA MODULE — Nhiều ảnh/video trong 1 kỷ niệm
+// Hoàn toàn độc lập, không thay đổi code cũ
+// ============================================================
+
+// ── State cho multi-upload ──
+const MultiMediaState = {
+  files: [],        // [{file, blobUrl, type}] — files đang chờ upload
+  existing: [],     // [{id, media_url, media_type, position}] — media đã lưu (khi edit)
+  lightboxItems: [], // [{url, type}] — dùng cho lightbox slideshow
+  lightboxIndex: 0,
+};
+
+// ── Supabase: đọc/ghi bảng memory_media ──
+const MediaAdapter = {
+  _headers() {
+    return {
+      'Content-Type': 'application/json',
+      'apikey': SUPABASE_KEY,
+      'Authorization': `Bearer ${SUPABASE_KEY}`,
+    };
+  },
+
+  // Lấy tất cả media của 1 kỷ niệm, sắp xếp theo position
+  async getByMemoryId(memoryId) {
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/memory_media?memory_id=eq.${memoryId}&order=position.asc`,
+      { headers: this._headers() }
+    );
+    if (!res.ok) return [];
+    return res.json();
+  },
+
+  // Thêm nhiều media cho 1 kỷ niệm
+  async insertMany(memoryId, items) {
+    if (!items.length) return;
+    const records = items.map((item, i) => ({
+      memory_id: memoryId,
+      media_url: item.url,
+      media_type: item.type,
+      position: i,
+    }));
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/memory_media`,
+      {
+        method: 'POST',
+        headers: { ...this._headers(), 'Prefer': 'return=minimal' },
+        body: JSON.stringify(records),
+      }
+    );
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.message || `Insert media thất bại: ${res.status}`);
+    }
+  },
+
+  // Xóa 1 media theo id
+  async deleteById(id) {
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/memory_media?id=eq.${id}`,
+      { method: 'DELETE', headers: this._headers() }
+    );
+    if (!res.ok) throw new Error(`Xóa media thất bại: ${res.status}`);
+  },
+
+  // Xóa toàn bộ media của 1 kỷ niệm
+  async deleteByMemoryId(memoryId) {
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/memory_media?memory_id=eq.${memoryId}`,
+      { method: 'DELETE', headers: this._headers() }
+    );
+    if (!res.ok) throw new Error(`Xóa tất cả media thất bại: ${res.status}`);
+  },
+};
+
+// ── Inject UI multi-upload vào form hiện có ──
+function injectMultiUploadUI() {
+  // Không inject 2 lần
+  if (document.getElementById('multiUploadSection')) return;
+
+  // Tìm form-group chứa "Ảnh hay video" để thêm section bên dưới
+  const memoryModalBody = document.querySelector('.memory-modal-body');
+  if (!memoryModalBody) return;
+
+  const section = document.createElement('div');
+  section.id = 'multiUploadSection';
+  section.className = 'form-group';
+  section.innerHTML = `
+    <label class="form-label">
+      📎 Thêm nhiều ảnh/video
+      <span style="font-size:11px;font-weight:400;opacity:0.6;margin-left:6px;">(tuỳ chọn)</span>
+    </label>
+
+    <label class="multi-upload-btn" for="multiMediaInput">
+      <span>+ Chọn ảnh/video</span>
+      <input type="file" id="multiMediaInput" accept="image/*,video/*" multiple hidden
+             onchange="handleMultiFileSelect(this)" />
+    </label>
+
+    <div id="multiPreviewGrid" class="multi-preview-grid"></div>
+  `;
+
+  // Chèn sau form-group đầu tiên (chọn loại media)
+  const firstGroup = memoryModalBody.querySelector('.form-group');
+  if (firstGroup && firstGroup.nextSibling) {
+    memoryModalBody.insertBefore(section, firstGroup.nextSibling);
+  } else {
+    memoryModalBody.appendChild(section);
+  }
+}
+
+// ── Xử lý chọn nhiều file ──
+function handleMultiFileSelect(input) {
+  const files = Array.from(input.files);
+  if (!files.length) return;
+
+  files.forEach(file => {
+    if (!file.type.startsWith('image/') && !file.type.startsWith('video/')) return;
+    const blobUrl = URL.createObjectURL(file);
+    const type = file.type.startsWith('video/') ? 'video' : 'image';
+    MultiMediaState.files.push({ file, blobUrl, type });
+  });
+
+  renderMultiPreviewGrid();
+  input.value = ''; // Reset để có thể chọn lại file cũ
+  showToast(`✓ Đã chọn ${files.length} file`, 'success');
+}
+
+// ── Render grid preview ──
+function renderMultiPreviewGrid() {
+  const grid = document.getElementById('multiPreviewGrid');
+  if (!grid) return;
+
+  // Gộp existing (đã lưu) + files mới
+  const existingHtml = MultiMediaState.existing.map((item, i) => `
+    <div class="multi-preview-item" data-existing-index="${i}">
+      ${item.media_type === 'video'
+        ? `<video src="${item.media_url}" class="multi-thumb"></video>`
+        : `<img src="${item.media_url}" class="multi-thumb" loading="lazy" />`}
+      <div class="multi-thumb-badge">${item.media_type === 'video' ? '🎬' : '📷'}</div>
+      <button class="multi-remove-btn" onclick="removeExistingMedia(${i})" title="Xóa">✕</button>
+    </div>
+  `).join('');
+
+  const newHtml = MultiMediaState.files.map((item, i) => `
+    <div class="multi-preview-item" data-new-index="${i}">
+      ${item.type === 'video'
+        ? `<video src="${item.blobUrl}" class="multi-thumb"></video>`
+        : `<img src="${item.blobUrl}" class="multi-thumb" loading="lazy" />`}
+      <div class="multi-thumb-badge">${item.type === 'video' ? '🎬' : '📷'} Mới</div>
+      <button class="multi-remove-btn" onclick="removeNewMedia(${i})" title="Xóa">✕</button>
+    </div>
+  `).join('');
+
+  const total = MultiMediaState.existing.length + MultiMediaState.files.length;
+  grid.innerHTML = existingHtml + newHtml;
+
+  if (total > 0) {
+    grid.style.display = 'grid';
+  } else {
+    grid.style.display = 'none';
+  }
+}
+
+function removeExistingMedia(index) {
+  MultiMediaState.existing.splice(index, 1);
+  renderMultiPreviewGrid();
+}
+
+function removeNewMedia(index) {
+  URL.revokeObjectURL(MultiMediaState.files[index].blobUrl);
+  MultiMediaState.files.splice(index, 1);
+  renderMultiPreviewGrid();
+}
+
+function resetMultiMedia() {
+  MultiMediaState.files.forEach(f => URL.revokeObjectURL(f.blobUrl));
+  MultiMediaState.files = [];
+  MultiMediaState.existing = [];
+  const grid = document.getElementById('multiPreviewGrid');
+  if (grid) { grid.innerHTML = ''; grid.style.display = 'none'; }
+}
+
+// ── Upload tất cả file mới lên Cloudinary ──
+async function uploadAllMultiMedia() {
+  const results = [];
+  for (let i = 0; i < MultiMediaState.files.length; i++) {
+    const item = MultiMediaState.files[i];
+    showToast(`⏳ Đang upload file ${i + 1}/${MultiMediaState.files.length}...`, '');
+    const uploaded = await CloudinaryAdapter.upload(item.file);
+    results.push({ url: uploaded.secure_url, type: item.type });
+  }
+  return results;
+}
+
+// ── Hook vào saveMemory: sau khi lưu xong, upload multi-media ──
+const _originalSaveMemory = saveMemory;
+window.saveMemory = async function() {
+  // Gọi saveMemory gốc — nó sẽ insert vào bảng memories và gọi loadMemoriesFromSupabase
+  // Nhưng ta cần lấy id của row vừa tạo → override loadMemoriesFromSupabase tạm thời
+
+  const hasMultiMedia = MultiMediaState.files.length > 0 || MultiMediaState.existing.length > 0;
+
+  if (!hasMultiMedia) {
+    // Không có multi-media → chạy bình thường
+    await _originalSaveMemory();
+    resetMultiMedia();
+    return;
+  }
+
+  // Có multi-media → cần biết memory_id sau khi insert
+  const title = document.getElementById('memoryTitle').value.trim();
+  const date  = document.getElementById('memoryDate').value;
+  const description = document.getElementById('memoryDescription').value.trim();
+
+  if (!title) {
+    showToast('⚠️ Vui lòng nhập tiêu đề!', 'error');
+    document.getElementById('memoryTitle').focus();
+    return;
+  }
+  if (!date) {
+    showToast('⚠️ Vui lòng chọn ngày!', 'error');
+    return;
+  }
+
+  const saveBtn = document.querySelector('.memory-modal-footer .btn-primary');
+  if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = '⏳ Đang lưu...'; }
+
+  try {
+    // 1. Upload media chính (nếu có)
+    let mediaUrl  = AppState.currentMediaData;
+    let mediaType = AppState.currentMediaType;
+    if (AppState.currentMediaFile) {
+      showToast('⏳ Đang tải ảnh chính...', '');
+      const up = await uploadToCloudinary(AppState.currentMediaFile);
+      mediaUrl = up.secure_url;
+      mediaType = up.media_type;
+    }
+
+    let memorySupabaseId;
+
+    if (AppState.editingId && AppState.editingSupabaseId) {
+      // UPDATE
+      const updates = { title, date, description, media_type: mediaType };
+      if (AppState.currentMediaFile) updates.media_url = mediaUrl;
+      await SupabaseAdapter.update(AppState.editingSupabaseId, updates);
+      memorySupabaseId = AppState.editingSupabaseId;
+
+      // Xóa existing media đã bị remove
+      const currentIds = MultiMediaState.existing.map(e => e.id);
+      const allOld = await MediaAdapter.getByMemoryId(memorySupabaseId);
+      for (const old of allOld) {
+        if (!currentIds.includes(old.id)) {
+          await MediaAdapter.deleteById(old.id);
+        }
+      }
+      showToast('✓ Đã cập nhật kỷ niệm!', 'success');
+    } else {
+      // INSERT
+      showToast('⏳ Đang lưu kỷ niệm...', '');
+      const row = await saveMemoryToSupabase({
+        title, date, description,
+        media_url: mediaUrl || '',
+        media_type: mediaType,
+      });
+      memorySupabaseId = row.id;
+      showToast('✓ Đã thêm kỷ niệm!', 'success');
+    }
+
+    // 2. Upload và lưu multi-media
+    if (MultiMediaState.files.length > 0) {
+      const uploaded = await uploadAllMultiMedia();
+      await MediaAdapter.insertMany(memorySupabaseId, uploaded);
+    }
+
+    // 3. Reload và đóng
+    await loadMemoriesFromSupabase();
+    closeMemoryModal();
+    resetMultiMedia();
+
+  } catch(e) {
+    console.error('Lỗi lưu multi-media:', e);
+    showToast(`⚠️ Lỗi: ${e.message}`, 'error');
+  } finally {
+    if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = '💾 Lưu'; }
+  }
+};
+
+// ── Hook vào openAddMemoryModal để inject UI + reset state ──
+const _origOpenAdd = openAddMemoryModal;
+window.openAddMemoryModal = function() {
+  _origOpenAdd();
+  resetMultiMedia();
+  injectMultiUploadUI();
+};
+
+// ── Hook vào openEditMemoryModal để load existing media ──
+const _origOpenEdit = openEditMemoryModal;
+window.openEditMemoryModal = async function(id) {
+  _origOpenEdit(id);
+  resetMultiMedia();
+  injectMultiUploadUI();
+
+  // Load media phụ từ Supabase
+  const memory = AppState.memories.find(m => m.id === id);
+  if (memory) {
+    try {
+      const items = await MediaAdapter.getByMemoryId(memory.supabaseId);
+      MultiMediaState.existing = items;
+      renderMultiPreviewGrid();
+    } catch(e) {
+      console.warn('Không tải được media phụ:', e);
+    }
+  }
+};
+
+// ── Hook vào closeMemoryModal để reset state ──
+const _origCloseModal = closeMemoryModal;
+window.closeMemoryModal = function() {
+  _origCloseModal();
+  resetMultiMedia();
+};
+
+// ── Lightbox slideshow: override openLightbox để hiển thị nhiều ảnh ──
+const _origOpenLightbox = openLightbox;
+window.openLightbox = async function(id) {
+  const memory = AppState.memories.find(m => m.id === id);
+  if (!memory) return;
+
+  // Tải media phụ
+  let extraItems = [];
+  try {
+    const rows = await MediaAdapter.getByMemoryId(memory.supabaseId);
+    extraItems = rows.map(r => ({ url: r.media_url, type: r.media_type }));
+  } catch(e) {}
+
+  // Gộp: ảnh chính + media phụ
+  MultiMediaState.lightboxItems = [];
+  if (memory.mediaData) {
+    MultiMediaState.lightboxItems.push({ url: memory.mediaData, type: memory.mediaType });
+  }
+  extraItems.forEach(e => MultiMediaState.lightboxItems.push(e));
+
+  if (MultiMediaState.lightboxItems.length <= 1) {
+    // Chỉ có 1 ảnh → dùng lightbox gốc
+    _origOpenLightbox(id);
+    return;
+  }
+
+  // Nhiều ảnh → mở lightbox slideshow
+  MultiMediaState.lightboxIndex = 0;
+  openLightboxSlideshow(memory);
+};
+
+function openLightboxSlideshow(memory) {
+  const lightbox = document.getElementById('lightbox');
+  const mediaContainer = document.getElementById('lightboxMedia');
+
+  renderLightboxSlide();
+
+  // Thêm nút điều hướng nếu chưa có
+  if (!document.getElementById('lbPrev')) {
+    const prev = document.createElement('button');
+    prev.id = 'lbPrev';
+    prev.className = 'lb-nav-btn lb-prev';
+    prev.innerHTML = '❮';
+    prev.onclick = (e) => { e.stopPropagation(); slideLightbox(-1); };
+
+    const next = document.createElement('button');
+    next.id = 'lbNext';
+    next.className = 'lb-nav-btn lb-next';
+    next.innerHTML = '❯';
+    next.onclick = (e) => { e.stopPropagation(); slideLightbox(1); };
+
+    const counter = document.createElement('div');
+    counter.id = 'lbCounter';
+    counter.className = 'lb-counter';
+
+    const content = lightbox.querySelector('.lightbox-content');
+    if (content) {
+      content.appendChild(prev);
+      content.appendChild(next);
+      content.appendChild(counter);
+    }
+  }
+
+  updateLightboxNav();
+
+  document.getElementById('lightboxTitle').textContent = memory.title;
+  document.getElementById('lightboxDate').textContent = formatDate(memory.date);
+  document.getElementById('lightboxDesc').textContent = memory.description || '';
+
+  lightbox.classList.add('active');
+  document.body.style.overflow = 'hidden';
+}
+
+function renderLightboxSlide() {
+  const item = MultiMediaState.lightboxItems[MultiMediaState.lightboxIndex];
+  if (!item) return;
+
+  const mediaContainer = document.getElementById('lightboxMedia');
+  const video = mediaContainer.querySelector('video');
+  if (video) video.pause();
+
+  if (item.type === 'video') {
+    mediaContainer.innerHTML = `<video src="${item.url}" controls style="width:100%;max-height:60vh;object-fit:contain;"></video>`;
+  } else {
+    mediaContainer.innerHTML = `<img src="${item.url}" style="width:100%;max-height:60vh;object-fit:contain;" />`;
+  }
+}
+
+function slideLightbox(dir) {
+  const total = MultiMediaState.lightboxItems.length;
+  MultiMediaState.lightboxIndex = (MultiMediaState.lightboxIndex + dir + total) % total;
+  renderLightboxSlide();
+  updateLightboxNav();
+}
+
+function updateLightboxNav() {
+  const total = MultiMediaState.lightboxItems.length;
+  const idx = MultiMediaState.lightboxIndex;
+
+  const counter = document.getElementById('lbCounter');
+  if (counter) counter.textContent = `${idx + 1} / ${total}`;
+
+  const prev = document.getElementById('lbPrev');
+  const next = document.getElementById('lbNext');
+  if (prev) prev.style.display = total > 1 ? 'flex' : 'none';
+  if (next) next.style.display = total > 1 ? 'flex' : 'none';
+}
+
+// Keyboard điều hướng lightbox
+document.addEventListener('keydown', (e) => {
+  const lightbox = document.getElementById('lightbox');
+  if (!lightbox.classList.contains('active')) return;
+  if (e.key === 'ArrowLeft')  slideLightbox(-1);
+  if (e.key === 'ArrowRight') slideLightbox(1);
+});
+
+// Timeline: hiển thị số lượng media phụ trên card
+const _origCreateTimelineItem = createTimelineItem;
+window.createTimelineItem = function(memory, index) {
+  const item = _origCreateTimelineItem(memory, index);
+  // Badge số ảnh sẽ được cập nhật sau khi load
+  loadMediaCountBadge(memory, item);
+  return item;
+};
+
+async function loadMediaCountBadge(memory, item) {
+  try {
+    const rows = await MediaAdapter.getByMemoryId(memory.supabaseId);
+    if (rows.length === 0) return;
+
+    const badge = item.querySelector('.media-badge');
+    if (badge) {
+      const total = 1 + rows.length; // ảnh chính + media phụ
+      badge.textContent = badge.textContent + ` · ${total} ảnh`;
+    }
+  } catch(e) {}
+}
+
+console.log('✓ Multi-media module đã sẵn sàng!');
