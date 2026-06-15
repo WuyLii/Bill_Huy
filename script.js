@@ -134,6 +134,35 @@ const SupabaseAdapter = {
     );
     if (!res.ok) throw new Error(`Supabase DELETE thất bại: ${res.status}`);
   },
+
+  // ── Bảng settings: lưu ảnh khung tròn + video nền ──
+
+  async getSetting(key) {
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/settings?key=eq.${encodeURIComponent(key)}&select=value&limit=1`,
+      { headers: this._headers() }
+    );
+    if (!res.ok) return null;
+    const rows = await res.json();
+    return rows.length > 0 ? rows[0].value : null;
+  },
+
+  async setSetting(key, value) {
+    // Dùng upsert: nếu key đã tồn tại thì update, chưa có thì insert
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/settings`,
+      {
+        method: 'POST',
+        headers: { ...this._headers(), 'Prefer': 'resolution=merge-duplicates,return=representation' },
+        body: JSON.stringify({ key, value }),
+      }
+    );
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.message || `Supabase setSetting thất bại: ${res.status}`);
+    }
+    return res.json();
+  },
 };
 
 // ====================================================
@@ -176,21 +205,24 @@ const StorageAdapter = {
     };
   },
 
-  /**
-   * Config nhỏ (ảnh khung tròn, video nền) vẫn dùng localStorage
-   * vì chúng là dữ liệu thiết bị cục bộ, không cần đồng bộ cloud
-   */
-  async saveCounterPhoto(dataUrl) {
-    try { localStorage.setItem('counterPhoto', dataUrl); } catch(e) {}
+  // ── Ảnh khung tròn: upload Cloudinary → lưu URL vào Supabase settings ──
+  async saveCounterPhoto(file) {
+    const uploaded = await CloudinaryAdapter.upload(file);
+    await SupabaseAdapter.setSetting('counter_photo', uploaded.secure_url);
+    return uploaded.secure_url;
   },
   async getCounterPhoto() {
-    return localStorage.getItem('counterPhoto') || null;
+    try { return await SupabaseAdapter.getSetting('counter_photo'); } catch(e) { return null; }
   },
-  async saveBgVideo(dataUrl) {
-    try { localStorage.setItem('bgVideo', dataUrl); } catch(e) {}
+
+  // ── Video nền: upload Cloudinary → lưu URL vào Supabase settings ──
+  async saveBgVideo(file) {
+    const uploaded = await CloudinaryAdapter.upload(file);
+    await SupabaseAdapter.setSetting('bg_video', uploaded.secure_url);
+    return uploaded.secure_url;
   },
   async getBgVideo() {
-    return localStorage.getItem('bgVideo') || null;
+    try { return await SupabaseAdapter.getSetting('bg_video'); } catch(e) { return null; }
   },
 };
 
@@ -255,23 +287,28 @@ const AppState = {
 // ====================================================
 
 async function initBackgroundVideo() {
-  const savedBgVideo = await StorageAdapter.getBgVideo();
-  if (savedBgVideo) {
-    const heroVideo = document.getElementById('heroVideo');
-    if (heroVideo) {
-      heroVideo.src = savedBgVideo;
-      heroVideo.load();
-      heroVideo.play().catch(() => {});
-    }
-  }
-
   const heroVideo = document.getElementById('heroVideo');
+
+  // Lắng nghe lỗi video mặc định (file local không có)
   if (heroVideo) {
     heroVideo.addEventListener('error', handleVideoError);
     const source = heroVideo.querySelector('source');
     if (source && (source.src.includes('background.mp4') || source.src.includes('nen(test).mp4'))) {
       document.getElementById('videoBg').classList.add('no-video');
     }
+  }
+
+  // Tải URL video nền từ Supabase settings
+  try {
+    const savedBgVideo = await StorageAdapter.getBgVideo();
+    if (savedBgVideo && heroVideo) {
+      heroVideo.src = savedBgVideo;
+      heroVideo.load();
+      heroVideo.play().catch(() => {});
+      document.getElementById('videoBg').classList.remove('no-video');
+    }
+  } catch(e) {
+    console.warn('Không tải được video nền từ cloud:', e);
   }
 }
 
@@ -289,22 +326,29 @@ async function changeBgVideo(input) {
     return;
   }
 
-  showToast('⏳ Đang xử lý video...', '');
+  showToast('⏳ Đang tải video lên Cloudinary...', '');
 
   try {
-    const dataUrl = await fileToDataUrl(file);
+    // Preview ngay bằng blob URL trong khi upload
+    const blobUrl = URL.createObjectURL(file);
     const heroVideo = document.getElementById('heroVideo');
     if (heroVideo) {
-      heroVideo.src = dataUrl;
+      heroVideo.src = blobUrl;
       heroVideo.load();
       heroVideo.play();
       document.getElementById('videoBg').classList.remove('no-video');
     }
-    await StorageAdapter.saveBgVideo(dataUrl);
+
+    // Upload lên Cloudinary → lưu URL vào Supabase settings
+    const cloudUrl = await StorageAdapter.saveBgVideo(file);
+
+    // Sau khi upload xong, dùng URL Cloudinary thay blob
+    if (heroVideo) heroVideo.src = cloudUrl;
+
     showToast('✓ Đã cập nhật video nền!', 'success');
   } catch (e) {
     console.error('Lỗi xử lý video:', e);
-    showToast('⚠️ Không thể xử lý video này!', 'error');
+    showToast('⚠️ Không thể tải video lên cloud!', 'error');
   }
 }
 
@@ -321,13 +365,23 @@ async function changeCounterPhoto(input) {
     return;
   }
 
+  showToast('⏳ Đang tải ảnh lên Cloudinary...', '');
+
   try {
-    const dataUrl = await fileToDataUrl(file);
-    applyCounterPhoto(dataUrl);
-    await StorageAdapter.saveCounterPhoto(dataUrl);
+    // Preview ngay bằng blob URL trong khi upload
+    const blobUrl = URL.createObjectURL(file);
+    applyCounterPhoto(blobUrl);
+
+    // Upload lên Cloudinary → lưu URL vào Supabase settings
+    const cloudUrl = await StorageAdapter.saveCounterPhoto(file);
+
+    // Sau khi upload xong, dùng URL Cloudinary thay blob
+    applyCounterPhoto(cloudUrl);
+
     showToast('✓ Đã cập nhật ảnh!', 'success');
   } catch (e) {
-    showToast('⚠️ Không thể đọc file ảnh!', 'error');
+    console.error('Lỗi upload ảnh khung tròn:', e);
+    showToast('⚠️ Không thể tải ảnh lên cloud!', 'error');
   }
 }
 
