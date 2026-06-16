@@ -2538,3 +2538,19 @@ body {
   .pb-card-title { font-size: 1rem; }
   .jn-card-title { font-size: 0.98rem; }
 }
+/* ====================================================
+   PHOTOBOOTH CATALOG LIGHTBOX — màu đỏ-cam
+   ==================================================== */
+#pbCatalog {
+  background: rgba(18, 4, 2, 0.93);
+}
+#pbCatalog .jn-catalog-content {
+  background: rgba(30, 8, 4, 0.97);
+  border-color: var(--pb-border);
+  box-shadow: 0 40px 100px rgba(0,0,0,0.6), var(--pb-glow);
+}
+#pbCatalog .jn-catalog-content::before {
+  background: linear-gradient(180deg, transparent, var(--pb-red), var(--pb-orange), var(--pb-red), transparent);
+}
+#pbCatalog .jn-catalog-date  { color: var(--pb-orange); }
+#pbCatalog .jn-catalog-location { display: none; }
