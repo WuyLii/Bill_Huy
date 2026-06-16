@@ -241,8 +241,16 @@ function initNavbar() {
 // ====================================================
 const LOVE_START_DATE = new Date('2025-07-11T00:00:00+07:00');
 
+// Trả về thời điểm hiện tại tính theo múi giờ Việt Nam (UTC+7)
+function nowVN() {
+  const now = new Date();
+  // Offset của VN so với UTC là +7 giờ (luôn cố định, không đổi giờ mùa hè)
+  const utcMs = now.getTime() + now.getTimezoneOffset() * 60000;
+  return new Date(utcMs + 7 * 3600000);
+}
+
 function updateLoveCounter() {
-  const diff = Date.now() - LOVE_START_DATE;
+  const diff = nowVN() - LOVE_START_DATE;
   if (diff < 0) { ['days','hours','minutes','seconds'].forEach(id => setCounterValue(id, 0, id==='days'?3:2)); return; }
   const s = Math.floor(diff / 1000);
   setCounterValue('days',    Math.floor(s / 86400), 3);
@@ -752,7 +760,7 @@ async function confirmDeleteMemory(id) {
 // ====================================================
 function formatDate(d) {
   if (!d) return '';
-  try { return new Date(d + 'T00:00:00').toLocaleDateString('vi-VN', { day: '2-digit', month: 'long', year: 'numeric' }); }
+  try { return new Date(d + 'T00:00:00+07:00').toLocaleDateString('vi-VN', { day: '2-digit', month: 'long', year: 'numeric', timeZone: 'Asia/Ho_Chi_Minh' }); }
   catch(e) { return d; }
 }
 
