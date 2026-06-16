@@ -1795,3 +1795,779 @@ body {
   backdrop-filter: blur(6px);
   z-index: 20;
 }
+
+/* ====================================================
+   CHINH PHỤC PHÔ TÔ BÚT — PHOTOBOOTH SECTION
+   Tông màu: đỏ nhạt (#E85D4A), cam (#F4956A), trắng
+   ==================================================== */
+
+/* Màu riêng cho section Phô Tô Bút */
+:root {
+  --pb-red:        #E85D4A;
+  --pb-red-soft:   #F2806F;
+  --pb-orange:     #F4956A;
+  --pb-orange-soft:#FAB896;
+  --pb-cream:      #FFF4F2;
+  --pb-glass:      rgba(244, 149, 106, 0.12);
+  --pb-glass-hover:rgba(244, 149, 106, 0.22);
+  --pb-border:     rgba(232, 93, 74, 0.28);
+  --pb-glow:       0 0 40px rgba(232, 93, 74, 0.3);
+
+  /* Xuyên Việt */
+  --jn-blue:       #2A7FD4;
+  --jn-blue-soft:  #5BA3E8;
+  --jn-sky:        #A8D4F5;
+  --jn-deep:       #0D3D6B;
+  --jn-glass:      rgba(42, 127, 212, 0.12);
+  --jn-glass-hover:rgba(42, 127, 212, 0.22);
+  --jn-border:     rgba(42, 127, 212, 0.3);
+  --jn-glow:       0 0 40px rgba(42, 127, 212, 0.35);
+}
+
+/* ── Section wrapper ── */
+.photobooth-section {
+  position: relative;
+  z-index: 10;
+  padding: var(--spacing-2xl) 0;
+  background: linear-gradient(
+    180deg,
+    transparent 0%,
+    rgba(40, 8, 4, 0.55) 15%,
+    rgba(60, 18, 8, 0.65) 50%,
+    rgba(40, 8, 4, 0.55) 85%,
+    transparent 100%
+  );
+  backdrop-filter: blur(3px);
+}
+
+/* ── Eyebrow / title tông đỏ-cam ── */
+.pb-eyebrow  { color: var(--pb-orange) !important; }
+.pb-title    { color: var(--white) !important; }
+.pb-subtitle { color: rgba(255,255,255,0.65) !important; }
+
+/* ── Nút thêm cột mốc ── */
+.pb-actions {
+  display: flex;
+  justify-content: center;
+  margin-bottom: var(--spacing-xl);
+}
+
+.pb-add-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 36px;
+  font-family: var(--font-body);
+  font-size: 0.875rem;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  color: var(--white);
+  background: linear-gradient(135deg, rgba(232,93,74,0.22), rgba(244,149,106,0.22));
+  border: 1px solid var(--pb-border);
+  border-radius: 100px;
+  cursor: pointer;
+  transition: all var(--transition-smooth);
+  backdrop-filter: blur(12px);
+}
+.pb-add-btn:hover {
+  background: linear-gradient(135deg, rgba(232,93,74,0.38), rgba(244,149,106,0.38));
+  transform: translateY(-2px);
+  box-shadow: 0 8px 28px rgba(232,93,74,0.28);
+  border-color: rgba(232,93,74,0.5);
+}
+.pb-add-btn-empty {
+  padding: 12px 32px;
+  font-family: var(--font-body);
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--pb-orange);
+  background: rgba(244,149,106,0.1);
+  border: 1px solid rgba(244,149,106,0.3);
+  border-radius: 100px;
+  cursor: pointer;
+  transition: all var(--transition-smooth);
+}
+.pb-add-btn-empty:hover {
+  background: rgba(244,149,106,0.2);
+  transform: translateY(-2px);
+}
+
+/* ── Empty state ── */
+.pb-empty {
+  text-align: center;
+  padding: var(--spacing-xl);
+  color: var(--text-on-dark-muted);
+}
+.pb-empty p { font-size: 1rem; line-height: 1.7; margin-bottom: 24px; }
+
+/* ── Card Grid ── */
+.pb-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 24px;
+  padding: 8px 0;
+}
+
+/* ── Card cột mốc ── */
+.pb-card {
+  background: var(--pb-glass);
+  border: 1px solid var(--pb-border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  cursor: pointer;
+  transition: transform var(--transition-smooth), box-shadow var(--transition-smooth), border-color var(--transition-smooth);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  position: relative;
+}
+.pb-card:hover {
+  transform: translateY(-8px) scale(1.01);
+  box-shadow: var(--pb-glow), 0 16px 40px rgba(0,0,0,0.3);
+  border-color: rgba(232,93,74,0.5);
+}
+
+/* Số thứ tự cột mốc */
+.pb-card-index {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  z-index: 3;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--pb-red), var(--pb-orange));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: white;
+  box-shadow: 0 2px 10px rgba(232,93,74,0.5);
+}
+
+/* Ảnh/video trong card */
+.pb-card-media {
+  position: relative;
+  width: 100%;
+  padding-top: 66.67%;
+  overflow: hidden;
+  background: rgba(255,255,255,0.04);
+}
+.pb-card-media img,
+.pb-card-media video {
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  object-fit: cover;
+  transition: transform 0.6s cubic-bezier(0.25,0.46,0.45,0.94);
+}
+.pb-card:hover .pb-card-media img { transform: scale(1.06); }
+
+/* Badge media */
+.pb-card-media-badge {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  padding: 3px 9px;
+  background: rgba(0,0,0,0.5);
+  backdrop-filter: blur(8px);
+  border-radius: 100px;
+  font-size: 0.68rem;
+  font-weight: 500;
+  color: white;
+  letter-spacing: 0.08em;
+  z-index: 2;
+}
+
+/* Nội dung card */
+.pb-card-body {
+  padding: 20px 22px 16px;
+}
+.pb-card-date {
+  font-size: 0.7rem;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--pb-orange);
+  margin-bottom: 8px;
+}
+.pb-card-title {
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+  font-style: italic;
+  color: var(--white);
+  line-height: 1.3;
+  margin-bottom: 8px;
+}
+.pb-card-desc {
+  font-size: 0.82rem;
+  line-height: 1.6;
+  color: var(--text-on-dark-muted);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  line-clamp: 2;
+  overflow: hidden;
+}
+
+/* Nút action */
+.pb-card-actions {
+  display: flex;
+  gap: 8px;
+  padding: 12px 22px 16px;
+}
+.pb-action-edit {
+  flex: 1; padding: 7px;
+  font-size: 0.72rem; font-weight: 500; font-family: var(--font-body);
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(244,149,106,0.25);
+  color: var(--pb-orange-soft);
+  background: rgba(244,149,106,0.08);
+  cursor: pointer; transition: all var(--transition-fast);
+}
+.pb-action-edit:hover { background: rgba(244,149,106,0.18); border-color: rgba(244,149,106,0.45); }
+
+.pb-action-delete {
+  flex: 1; padding: 7px;
+  font-size: 0.72rem; font-weight: 500; font-family: var(--font-body);
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(255,100,100,0.15);
+  color: rgba(255,130,130,0.8);
+  background: rgba(255,100,100,0.07);
+  cursor: pointer; transition: all var(--transition-fast);
+}
+.pb-action-delete:hover { background: rgba(255,100,100,0.16); }
+
+/* ── Photobooth Modal ── */
+.pb-modal {
+  position: fixed;
+  top: 50%; left: 50%;
+  transform: translate(-50%,-50%) scale(0.92);
+  z-index: 400;
+  width: 540px; max-width: 95vw; max-height: 90vh;
+  background: rgba(30, 8, 4, 0.96);
+  backdrop-filter: blur(28px);
+  -webkit-backdrop-filter: blur(28px);
+  border: 1px solid var(--pb-border);
+  border-radius: var(--radius-xl);
+  display: flex; flex-direction: column;
+  opacity: 0; pointer-events: none;
+  transition: all var(--transition-spring);
+  overflow: hidden;
+  box-shadow: 0 40px 80px rgba(0,0,0,0.5), var(--pb-glow);
+}
+.pb-modal.active {
+  opacity: 1; pointer-events: all;
+  transform: translate(-50%,-50%) scale(1);
+}
+.pb-modal-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 22px 26px;
+  border-bottom: 1px solid var(--pb-border);
+  flex-shrink: 0;
+}
+.pb-modal-header h3 {
+  font-family: var(--font-display);
+  font-size: 1.1rem; font-style: italic;
+  color: var(--pb-orange-soft);
+}
+.pb-modal-body {
+  flex: 1; overflow-y: auto;
+  padding: 22px 26px;
+  display: flex; flex-direction: column; gap: 18px;
+}
+.pb-modal-footer {
+  display: flex; gap: 12px;
+  padding: 18px 26px;
+  border-top: 1px solid var(--pb-border);
+  flex-shrink: 0;
+}
+.btn-pb-primary {
+  flex: 1; padding: 13px 28px;
+  font-family: var(--font-body); font-size: 0.875rem; font-weight: 500;
+  letter-spacing: 0.04em; color: var(--white);
+  background: linear-gradient(135deg, var(--pb-red), var(--pb-orange));
+  border: none; border-radius: 100px; cursor: pointer;
+  transition: all var(--transition-smooth);
+}
+.btn-pb-primary:hover {
+  opacity: 0.9; transform: translateY(-2px);
+  box-shadow: 0 8px 28px rgba(232,93,74,0.4);
+}
+
+/* ====================================================
+   HÀNH TRÌNH XUYÊN VIỆT — JOURNEY SECTION
+   Tông màu: xanh biển (#2A7FD4), xanh lam (#A8D4F5), trắng
+   ==================================================== */
+
+.journey-section {
+  position: relative;
+  z-index: 10;
+  padding: var(--spacing-2xl) 0;
+  background: linear-gradient(
+    180deg,
+    transparent 0%,
+    rgba(4, 18, 40, 0.6) 15%,
+    rgba(8, 28, 60, 0.7) 50%,
+    rgba(4, 18, 40, 0.6) 85%,
+    transparent 100%
+  );
+  backdrop-filter: blur(3px);
+}
+
+.jn-eyebrow  { color: var(--jn-sky) !important; }
+.jn-title    { color: var(--white) !important; }
+.jn-subtitle { color: rgba(255,255,255,0.65) !important; }
+
+/* ── Nút thêm địa điểm ── */
+.jn-actions {
+  display: flex;
+  justify-content: center;
+  margin-bottom: var(--spacing-xl);
+}
+.jn-add-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 36px;
+  font-family: var(--font-body); font-size: 0.875rem; font-weight: 500;
+  letter-spacing: 0.06em; color: var(--white);
+  background: linear-gradient(135deg, rgba(42,127,212,0.22), rgba(91,163,232,0.22));
+  border: 1px solid var(--jn-border);
+  border-radius: 100px; cursor: pointer;
+  transition: all var(--transition-smooth);
+  backdrop-filter: blur(12px);
+}
+.jn-add-btn:hover {
+  background: linear-gradient(135deg, rgba(42,127,212,0.38), rgba(91,163,232,0.38));
+  transform: translateY(-2px);
+  box-shadow: 0 8px 28px rgba(42,127,212,0.3);
+  border-color: rgba(42,127,212,0.55);
+}
+.jn-add-btn-empty {
+  padding: 12px 32px;
+  font-family: var(--font-body); font-size: 0.875rem; font-weight: 500;
+  color: var(--jn-sky);
+  background: rgba(168,212,245,0.1);
+  border: 1px solid rgba(168,212,245,0.3);
+  border-radius: 100px; cursor: pointer;
+  transition: all var(--transition-smooth);
+}
+.jn-add-btn-empty:hover { background: rgba(168,212,245,0.2); transform: translateY(-2px); }
+
+.jn-empty {
+  text-align: center;
+  padding: var(--spacing-xl);
+  color: var(--text-on-dark-muted);
+}
+.jn-empty p { font-size: 1rem; line-height: 1.7; margin-bottom: 24px; }
+
+/* ── Path container ── */
+.jn-path-container {
+  position: relative;
+  padding: 16px 0 32px;
+}
+
+/* Đường dọc trung tâm */
+.jn-path-container::before {
+  content: '';
+  position: absolute;
+  top: 0; bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 2px;
+  background: linear-gradient(
+    180deg,
+    transparent 0%,
+    var(--jn-blue) 8%,
+    var(--jn-blue-soft) 50%,
+    var(--jn-blue) 92%,
+    transparent 100%
+  );
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ── Journey stop item ── */
+.jn-stop {
+  display: grid;
+  grid-template-columns: 1fr 72px 1fr;
+  margin-bottom: 56px;
+  position: relative;
+}
+
+/* Điểm pin ở giữa */
+.jn-stop-pin {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 24px;
+  position: relative;
+  z-index: 2;
+}
+.jn-stop-pin-inner {
+  width: 44px; height: 44px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--jn-blue), var(--jn-blue-soft));
+  border: 3px solid rgba(255,255,255,0.2);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1rem;
+  box-shadow: 0 0 0 6px rgba(42,127,212,0.15), var(--jn-glow);
+  cursor: default;
+  transition: transform var(--transition-smooth), box-shadow var(--transition-smooth);
+}
+.jn-stop:hover .jn-stop-pin-inner {
+  transform: scale(1.12);
+  box-shadow: 0 0 0 9px rgba(42,127,212,0.2), var(--jn-glow);
+}
+
+/* Connector line từ pin đến card (ngang) */
+.jn-stop-connector {
+  position: absolute;
+  top: 46px;
+  height: 2px;
+  background: linear-gradient(90deg, var(--jn-blue-soft), rgba(42,127,212,0.3));
+  z-index: 1;
+}
+/* Card bên phải — connector từ trung tâm sang phải */
+.jn-stop:nth-child(odd)  .jn-stop-connector {
+  left: 50%; right: calc(50% - 36px);
+  width: calc(50% - 36px);
+  background: linear-gradient(90deg, rgba(42,127,212,0.3), var(--jn-blue-soft));
+}
+/* Card bên trái — connector từ trái sang trung tâm */
+.jn-stop:nth-child(even) .jn-stop-connector {
+  right: 50%; left: calc(50% - 36px);
+  width: calc(50% - 36px);
+  background: linear-gradient(90deg, var(--jn-blue-soft), rgba(42,127,212,0.3));
+}
+
+/* ── Journey card ── */
+.jn-card {
+  background: var(--jn-glass);
+  border: 1px solid var(--jn-border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  cursor: pointer;
+  transition: transform var(--transition-smooth), box-shadow var(--transition-smooth);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+.jn-card:hover {
+  transform: translateY(-6px);
+  box-shadow: var(--jn-glow), 0 16px 40px rgba(0,0,0,0.3);
+  border-color: rgba(91,163,232,0.5);
+}
+
+/* Card bên phải (lẻ) */
+.jn-stop:nth-child(odd) .jn-card  { grid-column: 3; }
+.jn-stop:nth-child(odd) .jn-stop-pin { grid-column: 2; }
+.jn-stop:nth-child(odd) .jn-stop-spacer { grid-column: 1; }
+
+/* Card bên trái (chẵn) */
+.jn-stop:nth-child(even) .jn-card  { grid-column: 1; }
+.jn-stop:nth-child(even) .jn-stop-pin { grid-column: 2; }
+.jn-stop:nth-child(even) .jn-stop-spacer { grid-column: 3; }
+
+/* Connector alignment theo chiều */
+.jn-stop:nth-child(odd) .jn-stop-connector {
+  left: 50%; width: calc(50% - 36px);
+  background: linear-gradient(90deg, rgba(42,127,212,0.4), var(--jn-blue-soft));
+}
+.jn-stop:nth-child(even) .jn-stop-connector {
+  right: 50%; left: auto;
+  width: calc(50% - 36px);
+  right: 50%; left: calc(0% + 36px);
+  background: linear-gradient(90deg, var(--jn-blue-soft), rgba(42,127,212,0.4));
+}
+
+.jn-card-media {
+  position: relative;
+  width: 100%; padding-top: 60%;
+  overflow: hidden; background: rgba(255,255,255,0.04);
+}
+.jn-card-media img,
+.jn-card-media video {
+  position: absolute; top: 0; left: 0;
+  width: 100%; height: 100%;
+  object-fit: cover;
+  transition: transform 0.6s cubic-bezier(0.25,0.46,0.45,0.94);
+}
+.jn-card:hover .jn-card-media img { transform: scale(1.06); }
+
+.jn-card-no-media {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 2.5rem; opacity: 0.25;
+}
+
+.jn-card-body { padding: 18px 22px 14px; }
+.jn-card-meta {
+  display: flex; align-items: center; gap: 10px;
+  margin-bottom: 8px; flex-wrap: wrap;
+}
+.jn-card-date {
+  font-size: 0.68rem; font-weight: 500; letter-spacing: 0.16em;
+  text-transform: uppercase; color: var(--jn-sky);
+}
+.jn-card-location-tag {
+  font-size: 0.68rem; color: rgba(168,212,245,0.7);
+  background: rgba(42,127,212,0.15);
+  padding: 2px 8px; border-radius: 100px;
+  border: 1px solid rgba(42,127,212,0.25);
+}
+.jn-card-title {
+  font-family: var(--font-display);
+  font-size: 1.1rem; font-style: italic;
+  color: var(--white); line-height: 1.3; margin-bottom: 7px;
+}
+.jn-card-desc {
+  font-size: 0.8rem; line-height: 1.6;
+  color: var(--text-on-dark-muted);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  line-clamp: 2;
+  overflow: hidden;
+}
+
+.jn-card-actions {
+  display: flex; gap: 8px;
+  padding: 10px 22px 15px;
+}
+.jn-action-edit {
+  flex: 1; padding: 7px;
+  font-size: 0.72rem; font-weight: 500; font-family: var(--font-body);
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(91,163,232,0.25);
+  color: var(--jn-sky); background: rgba(91,163,232,0.08);
+  cursor: pointer; transition: all var(--transition-fast);
+}
+.jn-action-edit:hover { background: rgba(91,163,232,0.18); }
+.jn-action-delete {
+  flex: 1; padding: 7px;
+  font-size: 0.72rem; font-weight: 500; font-family: var(--font-body);
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(255,100,100,0.15);
+  color: rgba(255,130,130,0.8); background: rgba(255,100,100,0.07);
+  cursor: pointer; transition: all var(--transition-fast);
+}
+.jn-action-delete:hover { background: rgba(255,100,100,0.16); }
+
+/* ── Journey Modal ── */
+.jn-modal {
+  position: fixed;
+  top: 50%; left: 50%;
+  transform: translate(-50%,-50%) scale(0.92);
+  z-index: 400;
+  width: 560px; max-width: 95vw; max-height: 90vh;
+  background: rgba(4, 14, 32, 0.97);
+  backdrop-filter: blur(28px);
+  -webkit-backdrop-filter: blur(28px);
+  border: 1px solid var(--jn-border);
+  border-radius: var(--radius-xl);
+  display: flex; flex-direction: column;
+  opacity: 0; pointer-events: none;
+  transition: all var(--transition-spring);
+  overflow: hidden;
+  box-shadow: 0 40px 80px rgba(0,0,0,0.5), var(--jn-glow);
+}
+.jn-modal.active {
+  opacity: 1; pointer-events: all;
+  transform: translate(-50%,-50%) scale(1);
+}
+.jn-modal-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 22px 26px;
+  border-bottom: 1px solid var(--jn-border);
+  flex-shrink: 0;
+}
+.jn-modal-header h3 {
+  font-family: var(--font-display);
+  font-size: 1.1rem; font-style: italic;
+  color: var(--jn-sky);
+}
+.jn-modal-body {
+  flex: 1; overflow-y: auto;
+  padding: 22px 26px;
+  display: flex; flex-direction: column; gap: 18px;
+}
+.jn-modal-footer {
+  display: flex; gap: 12px;
+  padding: 18px 26px;
+  border-top: 1px solid var(--jn-border);
+  flex-shrink: 0;
+}
+.btn-jn-primary {
+  flex: 1; padding: 13px 28px;
+  font-family: var(--font-body); font-size: 0.875rem; font-weight: 500;
+  letter-spacing: 0.04em; color: var(--white);
+  background: linear-gradient(135deg, var(--jn-blue), var(--jn-blue-soft));
+  border: none; border-radius: 100px; cursor: pointer;
+  transition: all var(--transition-smooth);
+}
+.btn-jn-primary:hover {
+  opacity: 0.9; transform: translateY(-2px);
+  box-shadow: 0 8px 28px rgba(42,127,212,0.4);
+}
+
+/* ── Journey Catalog (lightbox đặc biệt) ── */
+.jn-catalog {
+  position: fixed; inset: 0; z-index: 500;
+  background: rgba(2, 8, 22, 0.92);
+  backdrop-filter: blur(16px);
+  display: flex; align-items: center; justify-content: center;
+  padding: 20px;
+  opacity: 0; pointer-events: none;
+  transition: opacity 0.45s cubic-bezier(0.25,0.46,0.45,0.94);
+}
+.jn-catalog.active { opacity: 1; pointer-events: all; }
+
+.jn-catalog-content {
+  position: relative;
+  width: 100%; max-width: 900px;
+  max-height: 92vh;
+  background: rgba(8, 22, 48, 0.96);
+  border: 1px solid var(--jn-border);
+  border-radius: 28px;
+  overflow: hidden;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  box-shadow: 0 40px 100px rgba(0,0,0,0.6), var(--jn-glow);
+  transform: scale(0.9) translateY(20px);
+  transition: transform 0.45s cubic-bezier(0.34,1.56,0.64,1);
+}
+.jn-catalog.active .jn-catalog-content {
+  transform: scale(1) translateY(0);
+}
+
+/* Nút đóng catalog */
+.jn-catalog-close {
+  position: absolute; top: 16px; right: 16px; z-index: 10;
+  width: 40px; height: 40px;
+  background: rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 50%; color: white; font-size: 0.9rem;
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  transition: all var(--transition-fast); backdrop-filter: blur(8px);
+}
+.jn-catalog-close:hover { background: rgba(0,0,0,0.75); transform: scale(1.1); }
+
+/* Panel media trái */
+.jn-catalog-media {
+  position: relative;
+  min-height: 400px;
+  background: rgba(0,0,0,0.4);
+  overflow: hidden;
+}
+.jn-catalog-media img,
+.jn-catalog-media video {
+  width: 100%; height: 100%;
+  object-fit: cover; display: block;
+}
+
+/* Nav buttons trong catalog */
+.jn-cat-prev, .jn-cat-next {
+  position: absolute; top: 50%; transform: translateY(-50%);
+  width: 38px; height: 38px; border-radius: 50%;
+  background: rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.2);
+  color: white; font-size: 16px; cursor: pointer; z-index: 5;
+  display: flex; align-items: center; justify-content: center;
+  backdrop-filter: blur(8px);
+  transition: background 0.2s, transform 0.15s;
+}
+.jn-cat-prev:hover, .jn-cat-next:hover {
+  background: rgba(0,0,0,0.75);
+  transform: translateY(-50%) scale(1.1);
+}
+.jn-cat-prev { left: 10px; }
+.jn-cat-next { right: 10px; }
+.jn-cat-counter {
+  position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%);
+  font-size: 11px; font-weight: 500; color: rgba(255,255,255,0.8);
+  background: rgba(0,0,0,0.5); padding: 2px 12px; border-radius: 20px;
+  backdrop-filter: blur(6px); pointer-events: none; z-index: 5;
+  white-space: nowrap;
+}
+
+/* Panel info phải */
+.jn-catalog-info {
+  padding: 36px 32px;
+  display: flex; flex-direction: column; justify-content: center;
+  overflow-y: auto;
+}
+.jn-catalog-meta {
+  display: flex; flex-direction: column; gap: 6px;
+  margin-bottom: 18px;
+}
+.jn-catalog-date {
+  font-size: 0.7rem; font-weight: 500; letter-spacing: 0.2em;
+  text-transform: uppercase; color: var(--jn-sky);
+}
+.jn-catalog-location {
+  font-size: 0.82rem; color: rgba(168,212,245,0.8);
+  display: flex; align-items: center; gap: 5px;
+}
+.jn-catalog-location::before { content: '📍'; font-size: 0.75rem; }
+.jn-catalog-title {
+  font-family: var(--font-display);
+  font-size: 1.8rem; font-style: italic; font-weight: 400;
+  color: var(--white); line-height: 1.25; margin-bottom: 16px;
+}
+.jn-catalog-desc {
+  font-size: 0.9rem; line-height: 1.75;
+  color: var(--text-on-dark-muted);
+}
+
+/* Dải xanh trang trí bên trái catalog */
+.jn-catalog-content::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; bottom: 0;
+  width: 3px;
+  background: linear-gradient(180deg, transparent, var(--jn-blue), var(--jn-blue-soft), var(--jn-blue), transparent);
+  pointer-events: none;
+}
+
+/* ── Responsive cho 2 section mới ── */
+@media (max-width: 900px) {
+  .nav-menu { gap: 14px; }
+  .nav-link  { font-size: 0.72rem; }
+}
+
+@media (max-width: 768px) {
+  /* Photobooth grid: 1 cột */
+  .pb-grid { grid-template-columns: 1fr; gap: 16px; }
+
+  /* Journey path: stack dọc như timeline */
+  .jn-path-container::before { left: 20px; }
+  .jn-stop {
+    display: block;
+    padding-left: 56px;
+    position: relative;
+    margin-bottom: 36px;
+  }
+  .jn-stop-pin {
+    position: absolute;
+    left: 0; top: 10px;
+    padding-top: 0;
+  }
+  .jn-stop-pin-inner { width: 36px; height: 36px; font-size: 0.85rem; }
+  .jn-stop-spacer { display: none; }
+  .jn-stop-connector { display: none; }
+  .jn-card { width: 100%; }
+
+  /* Catalog: 1 cột dọc */
+  .jn-catalog-content {
+    grid-template-columns: 1fr;
+    max-height: 95vh;
+    border-radius: 20px;
+  }
+  .jn-catalog-media { min-height: 240px; }
+  .jn-catalog-info { padding: 24px 22px; }
+  .jn-catalog-title { font-size: 1.35rem; }
+}
+
+@media (max-width: 480px) {
+  .pb-card-title { font-size: 1rem; }
+  .jn-card-title { font-size: 0.98rem; }
+}
