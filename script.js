@@ -636,7 +636,7 @@ async function compressImage(file, maxSizeMB = 9) {
         blob => resolve(blob
           ? new File([blob], file.name, { type: 'image/jpeg', lastModified: Date.now() })
           : file),
-        'image/jpeg', 0.85
+        'image/jpeg', 0.92
       );
     };
     img.onerror = () => { URL.revokeObjectURL(blobUrl); resolve(file); };
