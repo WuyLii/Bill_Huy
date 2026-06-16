@@ -2227,7 +2227,7 @@ body {
   top: 46px;
   height: 2px;
   background: linear-gradient(90deg, var(--jn-blue-soft), rgba(42,127,212,0.3));
-  z-index: 1;
+  z-index: 0;
 }
 /* Card bên phải — connector từ trung tâm sang phải */
 .jn-stop:nth-child(odd)  .jn-stop-connector {
@@ -2252,6 +2252,8 @@ body {
   transition: transform var(--transition-smooth), box-shadow var(--transition-smooth);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
+  position: relative;
+  z-index: 1;
 }
 .jn-card:hover {
   transform: translateY(-6px);
