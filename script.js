@@ -40,7 +40,7 @@ const SupabaseAdapter = {
 
   // ── memories ──
   async getAllMemories() {
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/memories?select=*&order=created_at.desc`, { headers: this._h() });
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/memories?select=*&order=date.asc,created_at.asc`, { headers: this._h() });
     if (!res.ok) throw new Error(`GET memories thất bại: ${res.status}`);
     return res.json();
   },
@@ -955,11 +955,17 @@ async function init() {
   initLoveCounter();
   initScrollReveal();
   await loadMemoriesFromSupabase();
+  await loadPhotoboothFromSupabase();
+  await loadJourneyFromSupabase();
   observeStaticElements();
 
   document.getElementById('openAdminBtn')?.addEventListener('click', openAdminPanel);
   document.getElementById('openAddMemoryBtn')?.addEventListener('click', openAddMemoryModal);
+  document.getElementById('openAddPhotoboothBtn')?.addEventListener('click', openAddPhotoboothModal);
+  document.getElementById('openAddJourneyBtn')?.addEventListener('click', openAddJourneyModal);
   initDateInput();
+  initPbDateInput();
+  initJnDateInput();
 
   console.log(`💕 Sẵn sàng! Đã tải ${AppState.memories.length} kỷ niệm.`);
 }
@@ -967,3 +973,736 @@ async function init() {
 document.readyState === 'loading'
   ? document.addEventListener('DOMContentLoaded', init)
   : init();
+// ====================================================
+// SUPABASE ADAPTER — PHOTOBOOTH & JOURNEY
+// ====================================================
+Object.assign(SupabaseAdapter, {
+
+  // ── photobooth_events ──
+  async getAllPhotobooth() {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/photobooth_events?select=*&order=date.asc,created_at.asc`, { headers: this._h() });
+    if (!res.ok) throw new Error(`GET photobooth thất bại: ${res.status}`);
+    return res.json();
+  },
+  async insertPhotobooth(record) {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/photobooth_events`, {
+      method: 'POST',
+      headers: { ...this._h(), 'Prefer': 'return=representation' },
+      body: JSON.stringify(record),
+    });
+    if (!res.ok) { const e = await res.json().catch(()=>({})); throw new Error(e.message || `INSERT photobooth thất bại: ${res.status}`); }
+    return (await res.json())[0];
+  },
+  async updatePhotobooth(id, updates) {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/photobooth_events?id=eq.${id}`, {
+      method: 'PATCH',
+      headers: { ...this._h(), 'Prefer': 'return=representation' },
+      body: JSON.stringify(updates),
+    });
+    if (!res.ok) throw new Error(`UPDATE photobooth thất bại: ${res.status}`);
+    return (await res.json())[0];
+  },
+  async deletePhotobooth(id) {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/photobooth_events?id=eq.${id}`, { method: 'DELETE', headers: this._h() });
+    if (!res.ok) throw new Error(`DELETE photobooth thất bại: ${res.status}`);
+  },
+  async getPbMedia(eventId) {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/photobooth_media?event_id=eq.${eventId}&order=position.asc`, { headers: this._h() });
+    if (!res.ok) return [];
+    return res.json();
+  },
+  async insertPbMedia(eventId, items) {
+    if (!items.length) return;
+    const records = items.map((it, i) => ({ event_id: eventId, media_url: it.url, media_type: it.type, position: i }));
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/photobooth_media`, {
+      method: 'POST',
+      headers: { ...this._h(), 'Prefer': 'return=minimal' },
+      body: JSON.stringify(records),
+    });
+    if (!res.ok) { const e = await res.json().catch(()=>({})); throw new Error(e.message || `INSERT pb_media thất bại: ${res.status}`); }
+  },
+  async deletePbMedia(eventId) {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/photobooth_media?event_id=eq.${eventId}`, { method: 'DELETE', headers: this._h() });
+    if (!res.ok) throw new Error(`DELETE pb_media thất bại: ${res.status}`);
+  },
+
+  // ── journey_events ──
+  async getAllJourney() {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/journey_events?select=*&order=date.asc,created_at.asc`, { headers: this._h() });
+    if (!res.ok) throw new Error(`GET journey thất bại: ${res.status}`);
+    return res.json();
+  },
+  async insertJourney(record) {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/journey_events`, {
+      method: 'POST',
+      headers: { ...this._h(), 'Prefer': 'return=representation' },
+      body: JSON.stringify(record),
+    });
+    if (!res.ok) { const e = await res.json().catch(()=>({})); throw new Error(e.message || `INSERT journey thất bại: ${res.status}`); }
+    return (await res.json())[0];
+  },
+  async updateJourney(id, updates) {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/journey_events?id=eq.${id}`, {
+      method: 'PATCH',
+      headers: { ...this._h(), 'Prefer': 'return=representation' },
+      body: JSON.stringify(updates),
+    });
+    if (!res.ok) throw new Error(`UPDATE journey thất bại: ${res.status}`);
+    return (await res.json())[0];
+  },
+  async deleteJourney(id) {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/journey_events?id=eq.${id}`, { method: 'DELETE', headers: this._h() });
+    if (!res.ok) throw new Error(`DELETE journey thất bại: ${res.status}`);
+  },
+  async getJnMedia(eventId) {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/journey_media?event_id=eq.${eventId}&order=position.asc`, { headers: this._h() });
+    if (!res.ok) return [];
+    return res.json();
+  },
+  async insertJnMedia(eventId, items) {
+    if (!items.length) return;
+    const records = items.map((it, i) => ({ event_id: eventId, media_url: it.url, media_type: it.type, position: i }));
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/journey_media`, {
+      method: 'POST',
+      headers: { ...this._h(), 'Prefer': 'return=minimal' },
+      body: JSON.stringify(records),
+    });
+    if (!res.ok) { const e = await res.json().catch(()=>({})); throw new Error(e.message || `INSERT jn_media thất bại: ${res.status}`); }
+  },
+  async deleteJnMedia(eventId) {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/journey_media?event_id=eq.${eventId}`, { method: 'DELETE', headers: this._h() });
+    if (!res.ok) throw new Error(`DELETE jn_media thất bại: ${res.status}`);
+  },
+});
+
+// ====================================================
+// APP STATE — PHOTOBOOTH & JOURNEY
+// ====================================================
+AppState.photobooth   = [];
+AppState.journey      = [];
+AppState.pbPending    = [];
+AppState.pbExisting   = [];
+AppState.pbEditingId  = null;
+AppState.jnPending    = [];
+AppState.jnExisting   = [];
+AppState.jnEditingId  = null;
+// Journey catalog slideshow
+AppState.jnCatItems   = [];
+AppState.jnCatIndex   = 0;
+
+// ====================================================
+// PHOTOBOOTH — LOAD & RENDER
+// ====================================================
+async function loadPhotoboothFromSupabase() {
+  try {
+    const rows = await SupabaseAdapter.getAllPhotobooth();
+    AppState.photobooth = rows.map(r => ({
+      id: String(r.id),
+      supabaseId: r.id,
+      title: r.title || '',
+      date: r.date ? String(r.date).substring(0, 10) : '',
+      description: r.description || '',
+      mediaType: r.media_type || 'image',
+      mediaData: r.media_url || null,
+      createdAt: r.created_at,
+    }));
+  } catch(e) {
+    console.error('Lỗi tải photobooth:', e);
+    AppState.photobooth = [];
+  }
+  renderPhotoboothGrid();
+}
+
+function renderPhotoboothGrid() {
+  const grid  = document.getElementById('pbGrid');
+  const empty = document.getElementById('pbEmpty');
+  if (!grid) return;
+  grid.querySelectorAll('.pb-card').forEach(el => el.remove());
+
+  if (!AppState.photobooth.length) { empty.style.display = 'block'; return; }
+  empty.style.display = 'none';
+
+  AppState.photobooth.forEach((ev, i) => {
+    const card = createPbCard(ev, i);
+    grid.appendChild(card);
+    setTimeout(() => observeScrollReveal(card), 0);
+  });
+}
+
+function createPbCard(ev, index) {
+  const card = document.createElement('div');
+  card.className = 'pb-card scroll-reveal';
+  card.dataset.id = ev.id;
+
+  let mediaHtml = '';
+  if (ev.mediaData) {
+    if (ev.mediaType === 'video') {
+      mediaHtml = `<video src="${ev.mediaData}" preload="none" style="position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;"></video>`;
+    } else {
+      mediaHtml = `<img src="${ev.mediaData}" alt="${escapeHtml(ev.title)}" loading="lazy" />`;
+    }
+  } else {
+    mediaHtml = `<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:3rem;opacity:0.25;">🎯</div>`;
+  }
+
+  card.innerHTML = `
+    <div class="pb-card-index">${index + 1}</div>
+    <div class="pb-card-media">${mediaHtml}
+      <div class="pb-card-media-badge">${ev.mediaType === 'video' ? '🎬 Video' : '📷 Ảnh'}</div>
+    </div>
+    <div class="pb-card-body">
+      <div class="pb-card-date">${formatDate(ev.date)}</div>
+      <h3 class="pb-card-title">${escapeHtml(ev.title)}</h3>
+      <p class="pb-card-desc">${escapeHtml(ev.description || '')}</p>
+    </div>
+    <div class="pb-card-actions" onclick="event.stopPropagation()">
+      <button class="pb-action-edit" onclick="openEditPbModal('${ev.id}')">✏️ Sửa</button>
+      <button class="pb-action-delete" onclick="confirmDeletePb('${ev.id}')">🗑 Xóa</button>
+    </div>
+  `;
+  return card;
+}
+
+// ====================================================
+// PHOTOBOOTH — MODAL & CRUD
+// ====================================================
+function openAddPhotoboothModal() {
+  resetPbMediaState();
+  AppState.pbEditingId = null;
+  document.getElementById('pbModalTitle').textContent = '🎯 Thêm Cột Mốc Mới';
+  document.getElementById('pbEditId').value = '';
+  document.getElementById('pbTitle').value = '';
+  document.getElementById('pbDate').value = getTodayVN();
+  document.getElementById('pbDescription').value = '';
+  document.getElementById('pbModal').classList.add('active');
+  document.getElementById('modalOverlay').classList.add('active');
+  document.body.style.overflow = 'hidden';
+}
+
+async function openEditPbModal(id) {
+  const ev = AppState.photobooth.find(e => e.id === id);
+  if (!ev) return;
+  resetPbMediaState();
+  AppState.pbEditingId = id;
+  document.getElementById('pbModalTitle').textContent = '🎯 Chỉnh Sửa Cột Mốc';
+  document.getElementById('pbEditId').value = id;
+  document.getElementById('pbTitle').value = ev.title;
+  document.getElementById('pbDate').value = isoToDisplay(ev.date);
+  document.getElementById('pbDescription').value = ev.description || '';
+
+  const allMedia = [];
+  if (ev.mediaData) allMedia.push({ id: null, media_url: ev.mediaData, media_type: ev.mediaType, position: -1, isMain: true });
+  try {
+    const extras = await SupabaseAdapter.getPbMedia(ev.supabaseId);
+    extras.forEach(e => allMedia.push({ ...e, isMain: false }));
+  } catch(e) {}
+  AppState.pbExisting = allMedia;
+  renderPbPreviewGrid();
+
+  document.getElementById('pbModal').classList.add('active');
+  document.getElementById('modalOverlay').classList.add('active');
+  document.body.style.overflow = 'hidden';
+}
+
+function closePbModal() {
+  document.getElementById('pbModal').classList.remove('active');
+  document.getElementById('modalOverlay').classList.remove('active');
+  document.body.style.overflow = '';
+  resetPbMediaState();
+}
+
+function handlePbMediaSelect(input) {
+  Array.from(input.files).forEach(file => {
+    if (!file.type.startsWith('image/') && !file.type.startsWith('video/')) return;
+    AppState.pbPending.push({ file, blobUrl: URL.createObjectURL(file), type: file.type.startsWith('video/') ? 'video' : 'image' });
+  });
+  renderPbPreviewGrid();
+  input.value = '';
+}
+
+function renderPbPreviewGrid() {
+  const grid = document.getElementById('pbMediaPreviewGrid');
+  const ph   = document.getElementById('pbMediaPlaceholder');
+  if (!grid) return;
+  const existHtml = AppState.pbExisting.map((item, i) => `
+    <div class="mpg-item">
+      ${item.media_type === 'video' ? `<video src="${item.media_url}" class="mpg-thumb"></video>` : `<img src="${item.media_url}" class="mpg-thumb" loading="lazy" />`}
+      <div class="mpg-badge">${item.media_type === 'video' ? '🎬' : '📷'}</div>
+      <button class="mpg-del" onclick="removePbExisting(${i})">✕</button>
+    </div>`).join('');
+  const newHtml = AppState.pbPending.map((item, i) => `
+    <div class="mpg-item">
+      ${item.type === 'video' ? `<video src="${item.blobUrl}" class="mpg-thumb"></video>` : `<img src="${item.blobUrl}" class="mpg-thumb" loading="lazy" />`}
+      <div class="mpg-badge mpg-badge--new">${item.type === 'video' ? '🎬' : '📷'} mới</div>
+      <button class="mpg-del" onclick="removePbPending(${i})">✕</button>
+    </div>`).join('');
+  const total = AppState.pbExisting.length + AppState.pbPending.length;
+  grid.innerHTML = existHtml + newHtml;
+  grid.style.display = total ? 'grid' : 'none';
+  if (ph) ph.style.display = total ? 'none' : 'flex';
+}
+function removePbExisting(i) { AppState.pbExisting.splice(i, 1); renderPbPreviewGrid(); }
+function removePbPending(i)  { URL.revokeObjectURL(AppState.pbPending[i].blobUrl); AppState.pbPending.splice(i, 1); renderPbPreviewGrid(); }
+function resetPbMediaState() {
+  AppState.pbPending.forEach(f => URL.revokeObjectURL(f.blobUrl));
+  AppState.pbPending = []; AppState.pbExisting = [];
+  const grid = document.getElementById('pbMediaPreviewGrid');
+  const ph   = document.getElementById('pbMediaPlaceholder');
+  const inp  = document.getElementById('pbMediaInput');
+  if (grid) { grid.innerHTML = ''; grid.style.display = 'none'; }
+  if (ph)   ph.style.display = 'flex';
+  if (inp)  inp.value = '';
+}
+
+async function savePbMemory() {
+  const title       = document.getElementById('pbTitle').value.trim();
+  const dateDisplay = document.getElementById('pbDate').value.trim();
+  const description = document.getElementById('pbDescription').value.trim();
+
+  if (!title) { showToast('⚠️ Vui lòng nhập tên cột mốc!', 'error'); return; }
+  if (!dateDisplay || !isValidDisplayDate(dateDisplay)) { showToast('⚠️ Ngày không hợp lệ! (dd/mm/yyyy)', 'error'); return; }
+  const date = displayToIso(dateDisplay);
+
+  const saveBtn = document.querySelector('.pb-modal-footer .btn-pb-primary');
+  if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = '⏳ Đang lưu...'; }
+
+  try {
+    const uploadedNew = [];
+    for (let i = 0; i < AppState.pbPending.length; i++) {
+      const f = AppState.pbPending[i];
+      showToast(`⏳ Đang tải file ${i+1}/${AppState.pbPending.length}...`, '');
+      if (f.type === 'video' && f.file.size > 100*1024*1024) { showToast(`⚠️ Video quá lớn (>100MB)`, 'error'); continue; }
+      let fileToUpload = f.file;
+      if (f.type === 'image' && f.file.size > 9*1024*1024) fileToUpload = await compressImage(f.file);
+      try {
+        const up = await CloudinaryAdapter.upload(fileToUpload);
+        uploadedNew.push({ url: up.secure_url, type: f.type });
+      } catch(e) { showToast(`⚠️ Lỗi upload: ${e.message}`, 'error'); }
+    }
+
+    const allMedia = [
+      ...AppState.pbExisting.filter(e => e.isMain).map(e => ({ url: e.media_url, type: e.media_type })),
+      ...uploadedNew,
+    ];
+    const first = allMedia[0] || { url: '', type: 'image' };
+
+    if (AppState.pbEditingId) {
+      const ev = AppState.photobooth.find(e => e.id === AppState.pbEditingId);
+      await SupabaseAdapter.updatePhotobooth(ev.supabaseId, { title, date, description, media_url: first.url, media_type: first.type });
+      await SupabaseAdapter.deletePbMedia(ev.supabaseId);
+      if (allMedia.length > 1) await SupabaseAdapter.insertPbMedia(ev.supabaseId, allMedia.slice(1));
+      showToast('✓ Đã cập nhật cột mốc!', 'success');
+    } else {
+      const row = await SupabaseAdapter.insertPhotobooth({ title, date, description, media_url: first.url, media_type: first.type });
+      if (allMedia.length > 1) await SupabaseAdapter.insertPbMedia(row.id, allMedia.slice(1));
+      showToast('✓ Đã thêm cột mốc mới!', 'success');
+    }
+
+    await loadPhotoboothFromSupabase();
+    closePbModal();
+  } catch(e) {
+    console.error('Lỗi lưu photobooth:', e);
+    showToast(`⚠️ Lỗi: ${e.message}`, 'error');
+  } finally {
+    if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = '💾 Lưu'; }
+  }
+}
+
+async function confirmDeletePb(id) {
+  const ev = AppState.photobooth.find(e => e.id === id);
+  if (!ev || !confirm(`Xóa cột mốc "${ev.title}"?\nHành động không thể hoàn tác.`)) return;
+  try {
+    await SupabaseAdapter.deletePbMedia(ev.supabaseId);
+    await SupabaseAdapter.deletePhotobooth(ev.supabaseId);
+    await loadPhotoboothFromSupabase();
+    showToast('✓ Đã xóa cột mốc', 'success');
+  } catch(e) { showToast(`⚠️ Lỗi: ${e.message}`, 'error'); }
+}
+
+// ====================================================
+// JOURNEY — LOAD & RENDER
+// ====================================================
+async function loadJourneyFromSupabase() {
+  try {
+    const rows = await SupabaseAdapter.getAllJourney();
+    AppState.journey = rows.map(r => ({
+      id: String(r.id),
+      supabaseId: r.id,
+      title: r.title || '',
+      location: r.location || '',
+      date: r.date ? String(r.date).substring(0, 10) : '',
+      description: r.description || '',
+      mediaType: r.media_type || 'image',
+      mediaData: r.media_url || null,
+      createdAt: r.created_at,
+    }));
+  } catch(e) {
+    console.error('Lỗi tải journey:', e);
+    AppState.journey = [];
+  }
+  renderJourneyPath();
+}
+
+function renderJourneyPath() {
+  const container = document.getElementById('jnPathContainer');
+  const empty     = document.getElementById('jnEmpty');
+  if (!container) return;
+  container.querySelectorAll('.jn-stop').forEach(el => el.remove());
+
+  if (!AppState.journey.length) { empty.style.display = 'block'; return; }
+  empty.style.display = 'none';
+
+  AppState.journey.forEach((ev, i) => {
+    const stop = createJourneyStop(ev, i);
+    container.appendChild(stop);
+    setTimeout(() => observeScrollReveal(stop), 0);
+  });
+}
+
+function createJourneyStop(ev, index) {
+  const stop = document.createElement('div');
+  stop.className = 'jn-stop scroll-reveal';
+  stop.dataset.id = ev.id;
+
+  let mediaHtml = '';
+  if (ev.mediaData) {
+    if (ev.mediaType === 'video') {
+      mediaHtml = `<video src="${ev.mediaData}" preload="none" style="position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;"></video>`;
+    } else {
+      mediaHtml = `<img src="${ev.mediaData}" alt="${escapeHtml(ev.title)}" loading="lazy" />`;
+    }
+  } else {
+    mediaHtml = `<div class="jn-card-no-media">📍</div>`;
+  }
+
+  const locationTag = ev.location
+    ? `<span class="jn-card-location-tag">${escapeHtml(ev.location)}</span>`
+    : '';
+
+  stop.innerHTML = `
+    <div class="jn-card" onclick="openJnCatalog('${ev.id}')">
+      <div class="jn-card-media">${mediaHtml}</div>
+      <div class="jn-card-body">
+        <div class="jn-card-meta">
+          <span class="jn-card-date">${formatDate(ev.date)}</span>
+          ${locationTag}
+        </div>
+        <h3 class="jn-card-title">${escapeHtml(ev.title)}</h3>
+        <p class="jn-card-desc">${escapeHtml(ev.description || '')}</p>
+      </div>
+      <div class="jn-card-actions" onclick="event.stopPropagation()">
+        <button class="jn-action-edit" onclick="openEditJnModal('${ev.id}')">✏️ Sửa</button>
+        <button class="jn-action-delete" onclick="confirmDeleteJn('${ev.id}')">🗑 Xóa</button>
+      </div>
+    </div>
+    <div class="jn-stop-pin"><div class="jn-stop-pin-inner">📍</div></div>
+    <div class="jn-stop-spacer"></div>
+    <div class="jn-stop-connector"></div>
+  `;
+  return stop;
+}
+
+// ====================================================
+// JOURNEY — CATALOG LIGHTBOX
+// ====================================================
+async function openJnCatalog(id) {
+  const ev = AppState.journey.find(e => e.id === id);
+  if (!ev) return;
+
+  AppState.jnCatItems = [];
+  if (ev.mediaData) AppState.jnCatItems.push({ url: ev.mediaData, type: ev.mediaType });
+  try {
+    const extras = await SupabaseAdapter.getJnMedia(ev.supabaseId);
+    extras.forEach(e => AppState.jnCatItems.push({ url: e.media_url, type: e.media_type }));
+  } catch(e) {}
+  AppState.jnCatIndex = 0;
+
+  document.getElementById('jnCatalogTitle').textContent    = ev.title;
+  document.getElementById('jnCatalogDate').textContent     = formatDate(ev.date);
+  document.getElementById('jnCatalogLocation').textContent = ev.location || '';
+  document.getElementById('jnCatalogDesc').textContent     = ev.description || '';
+
+  ensureJnCatalogNav();
+  renderJnCatalogSlide();
+  updateJnCatalogNav();
+
+  document.getElementById('jnCatalog').classList.add('active');
+  document.body.style.overflow = 'hidden';
+}
+
+function ensureJnCatalogNav() {
+  if (document.getElementById('jnCatPrev')) return;
+  const media = document.getElementById('jnCatalogMedia');
+  if (!media) return;
+
+  const prev = document.createElement('button');
+  prev.id = 'jnCatPrev'; prev.className = 'jn-cat-prev'; prev.innerHTML = '&#10094;';
+  prev.onclick = e => { e.stopPropagation(); jnCatalogSlideBy(-1); };
+
+  const next = document.createElement('button');
+  next.id = 'jnCatNext'; next.className = 'jn-cat-next'; next.innerHTML = '&#10095;';
+  next.onclick = e => { e.stopPropagation(); jnCatalogSlideBy(1); };
+
+  const counter = document.createElement('div');
+  counter.id = 'jnCatCounter'; counter.className = 'jn-cat-counter';
+
+  media.appendChild(prev);
+  media.appendChild(next);
+  media.appendChild(counter);
+}
+
+function renderJnCatalogSlide() {
+  const item = AppState.jnCatItems[AppState.jnCatIndex];
+  const container = document.getElementById('jnCatalogMedia');
+  if (!container) return;
+
+  container.querySelector('video')?.pause();
+  const old = container.querySelector('img, video');
+  if (old) old.remove();
+
+  if (!item) {
+    const ph = document.createElement('div');
+    ph.style.cssText = 'width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:4rem;opacity:0.2;';
+    ph.textContent = '📍';
+    container.insertBefore(ph, container.firstChild);
+    return;
+  }
+
+  let el;
+  if (item.type === 'video') {
+    el = document.createElement('video');
+    el.src = item.url; el.controls = true; el.autoplay = true;
+    el.style.cssText = 'width:100%;height:100%;object-fit:cover;display:block;';
+  } else {
+    el = document.createElement('img');
+    el.src = item.url;
+    el.style.cssText = 'width:100%;height:100%;object-fit:cover;display:block;';
+  }
+  container.insertBefore(el, container.firstChild);
+}
+
+function jnCatalogSlideBy(dir) {
+  const total = AppState.jnCatItems.length;
+  if (total <= 1) return;
+  AppState.jnCatIndex = (AppState.jnCatIndex + dir + total) % total;
+  renderJnCatalogSlide();
+  updateJnCatalogNav();
+}
+
+function updateJnCatalogNav() {
+  const total = AppState.jnCatItems.length;
+  const show  = total > 1;
+  const prev = document.getElementById('jnCatPrev');
+  const next = document.getElementById('jnCatNext');
+  const counter = document.getElementById('jnCatCounter');
+  if (prev) prev.style.display = show ? 'flex' : 'none';
+  if (next) next.style.display = show ? 'flex' : 'none';
+  if (counter) counter.textContent = show ? `${AppState.jnCatIndex + 1} / ${total}` : '';
+}
+
+function closeJnCatalog() {
+  document.getElementById('jnCatalog').classList.remove('active');
+  document.body.style.overflow = '';
+  document.getElementById('jnCatalogMedia').querySelector('video')?.pause();
+}
+
+// ====================================================
+// JOURNEY — MODAL & CRUD
+// ====================================================
+function openAddJourneyModal() {
+  resetJnMediaState();
+  AppState.jnEditingId = null;
+  document.getElementById('jnModalTitle').textContent = '🗺️ Thêm Địa Điểm Mới';
+  document.getElementById('jnEditId').value = '';
+  document.getElementById('jnTitle').value = '';
+  document.getElementById('jnLocation').value = '';
+  document.getElementById('jnDate').value = getTodayVN();
+  document.getElementById('jnDescription').value = '';
+  document.getElementById('jnModal').classList.add('active');
+  document.getElementById('modalOverlay').classList.add('active');
+  document.body.style.overflow = 'hidden';
+}
+
+async function openEditJnModal(id) {
+  const ev = AppState.journey.find(e => e.id === id);
+  if (!ev) return;
+  resetJnMediaState();
+  AppState.jnEditingId = id;
+  document.getElementById('jnModalTitle').textContent = '🗺️ Chỉnh Sửa Địa Điểm';
+  document.getElementById('jnEditId').value = id;
+  document.getElementById('jnTitle').value = ev.title;
+  document.getElementById('jnLocation').value = ev.location || '';
+  document.getElementById('jnDate').value = isoToDisplay(ev.date);
+  document.getElementById('jnDescription').value = ev.description || '';
+
+  const allMedia = [];
+  if (ev.mediaData) allMedia.push({ id: null, media_url: ev.mediaData, media_type: ev.mediaType, position: -1, isMain: true });
+  try {
+    const extras = await SupabaseAdapter.getJnMedia(ev.supabaseId);
+    extras.forEach(e => allMedia.push({ ...e, isMain: false }));
+  } catch(e) {}
+  AppState.jnExisting = allMedia;
+  renderJnPreviewGrid();
+
+  document.getElementById('jnModal').classList.add('active');
+  document.getElementById('modalOverlay').classList.add('active');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeJnModal() {
+  document.getElementById('jnModal').classList.remove('active');
+  document.getElementById('modalOverlay').classList.remove('active');
+  document.body.style.overflow = '';
+  resetJnMediaState();
+}
+
+function handleJnMediaSelect(input) {
+  Array.from(input.files).forEach(file => {
+    if (!file.type.startsWith('image/') && !file.type.startsWith('video/')) return;
+    AppState.jnPending.push({ file, blobUrl: URL.createObjectURL(file), type: file.type.startsWith('video/') ? 'video' : 'image' });
+  });
+  renderJnPreviewGrid();
+  input.value = '';
+}
+
+function renderJnPreviewGrid() {
+  const grid = document.getElementById('jnMediaPreviewGrid');
+  const ph   = document.getElementById('jnMediaPlaceholder');
+  if (!grid) return;
+  const existHtml = AppState.jnExisting.map((item, i) => `
+    <div class="mpg-item">
+      ${item.media_type === 'video' ? `<video src="${item.media_url}" class="mpg-thumb"></video>` : `<img src="${item.media_url}" class="mpg-thumb" loading="lazy" />`}
+      <div class="mpg-badge">${item.media_type === 'video' ? '🎬' : '📷'}</div>
+      <button class="mpg-del" onclick="removeJnExisting(${i})">✕</button>
+    </div>`).join('');
+  const newHtml = AppState.jnPending.map((item, i) => `
+    <div class="mpg-item">
+      ${item.type === 'video' ? `<video src="${item.blobUrl}" class="mpg-thumb"></video>` : `<img src="${item.blobUrl}" class="mpg-thumb" loading="lazy" />`}
+      <div class="mpg-badge mpg-badge--new">${item.type === 'video' ? '🎬' : '📷'} mới</div>
+      <button class="mpg-del" onclick="removeJnPending(${i})">✕</button>
+    </div>`).join('');
+  const total = AppState.jnExisting.length + AppState.jnPending.length;
+  grid.innerHTML = existHtml + newHtml;
+  grid.style.display = total ? 'grid' : 'none';
+  if (ph) ph.style.display = total ? 'none' : 'flex';
+}
+function removeJnExisting(i) { AppState.jnExisting.splice(i, 1); renderJnPreviewGrid(); }
+function removeJnPending(i)  { URL.revokeObjectURL(AppState.jnPending[i].blobUrl); AppState.jnPending.splice(i, 1); renderJnPreviewGrid(); }
+function resetJnMediaState() {
+  AppState.jnPending.forEach(f => URL.revokeObjectURL(f.blobUrl));
+  AppState.jnPending = []; AppState.jnExisting = [];
+  const grid = document.getElementById('jnMediaPreviewGrid');
+  const ph   = document.getElementById('jnMediaPlaceholder');
+  const inp  = document.getElementById('jnMediaInput');
+  if (grid) { grid.innerHTML = ''; grid.style.display = 'none'; }
+  if (ph)   ph.style.display = 'flex';
+  if (inp)  inp.value = '';
+}
+
+async function saveJnMemory() {
+  const title       = document.getElementById('jnTitle').value.trim();
+  const location    = document.getElementById('jnLocation').value.trim();
+  const dateDisplay = document.getElementById('jnDate').value.trim();
+  const description = document.getElementById('jnDescription').value.trim();
+
+  if (!title) { showToast('⚠️ Vui lòng nhập tên địa điểm!', 'error'); return; }
+  if (!dateDisplay || !isValidDisplayDate(dateDisplay)) { showToast('⚠️ Ngày không hợp lệ! (dd/mm/yyyy)', 'error'); return; }
+  const date = displayToIso(dateDisplay);
+
+  const saveBtn = document.querySelector('.jn-modal-footer .btn-jn-primary');
+  if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = '⏳ Đang lưu...'; }
+
+  try {
+    const uploadedNew = [];
+    for (let i = 0; i < AppState.jnPending.length; i++) {
+      const f = AppState.jnPending[i];
+      showToast(`⏳ Đang tải file ${i+1}/${AppState.jnPending.length}...`, '');
+      if (f.type === 'video' && f.file.size > 100*1024*1024) { showToast(`⚠️ Video quá lớn (>100MB)`, 'error'); continue; }
+      let fileToUpload = f.file;
+      if (f.type === 'image' && f.file.size > 9*1024*1024) fileToUpload = await compressImage(f.file);
+      try {
+        const up = await CloudinaryAdapter.upload(fileToUpload);
+        uploadedNew.push({ url: up.secure_url, type: f.type });
+      } catch(e) { showToast(`⚠️ Lỗi upload: ${e.message}`, 'error'); }
+    }
+
+    const allMedia = [
+      ...AppState.jnExisting.filter(e => e.isMain).map(e => ({ url: e.media_url, type: e.media_type })),
+      ...uploadedNew,
+    ];
+    const first = allMedia[0] || { url: '', type: 'image' };
+
+    if (AppState.jnEditingId) {
+      const ev = AppState.journey.find(e => e.id === AppState.jnEditingId);
+      await SupabaseAdapter.updateJourney(ev.supabaseId, { title, location, date, description, media_url: first.url, media_type: first.type });
+      await SupabaseAdapter.deleteJnMedia(ev.supabaseId);
+      if (allMedia.length > 1) await SupabaseAdapter.insertJnMedia(ev.supabaseId, allMedia.slice(1));
+      showToast('✓ Đã cập nhật địa điểm!', 'success');
+    } else {
+      const row = await SupabaseAdapter.insertJourney({ title, location, date, description, media_url: first.url, media_type: first.type });
+      if (allMedia.length > 1) await SupabaseAdapter.insertJnMedia(row.id, allMedia.slice(1));
+      showToast('✓ Đã thêm địa điểm mới!', 'success');
+    }
+
+    await loadJourneyFromSupabase();
+    closeJnModal();
+  } catch(e) {
+    console.error('Lỗi lưu journey:', e);
+    showToast(`⚠️ Lỗi: ${e.message}`, 'error');
+  } finally {
+    if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = '💾 Lưu'; }
+  }
+}
+
+async function confirmDeleteJn(id) {
+  const ev = AppState.journey.find(e => e.id === id);
+  if (!ev || !confirm(`Xóa địa điểm "${ev.title}"?\nHành động không thể hoàn tác.`)) return;
+  try {
+    await SupabaseAdapter.deleteJnMedia(ev.supabaseId);
+    await SupabaseAdapter.deleteJourney(ev.supabaseId);
+    await loadJourneyFromSupabase();
+    showToast('✓ Đã xóa địa điểm', 'success');
+  } catch(e) { showToast(`⚠️ Lỗi: ${e.message}`, 'error'); }
+}
+
+// ====================================================
+// DATE INPUT AUTO-FORMAT — PHOTOBOOTH & JOURNEY
+// ====================================================
+function initPbDateInput() {
+  const input = document.getElementById('pbDate');
+  if (!input) return;
+  input.addEventListener('input', function() {
+    let val = this.value.replace(/\D/g, '');
+    if (val.length > 8) val = val.slice(0, 8);
+    if (val.length <= 2)      this.value = val;
+    else if (val.length <= 4) this.value = val.slice(0,2)+'/'+val.slice(2);
+    else                      this.value = val.slice(0,2)+'/'+val.slice(2,4)+'/'+val.slice(4);
+  });
+  input.addEventListener('keydown', function(e) {
+    if (e.key === 'Backspace' && this.value.endsWith('/')) { e.preventDefault(); this.value = this.value.slice(0,-1); }
+  });
+}
+
+function initJnDateInput() {
+  const input = document.getElementById('jnDate');
+  if (!input) return;
+  input.addEventListener('input', function() {
+    let val = this.value.replace(/\D/g, '');
+    if (val.length > 8) val = val.slice(0, 8);
+    if (val.length <= 2)      this.value = val;
+    else if (val.length <= 4) this.value = val.slice(0,2)+'/'+val.slice(2);
+    else                      this.value = val.slice(0,2)+'/'+val.slice(2,4)+'/'+val.slice(4);
+  });
+  input.addEventListener('keydown', function(e) {
+    if (e.key === 'Backspace' && this.value.endsWith('/')) { e.preventDefault(); this.value = this.value.slice(0,-1); }
+  });
+}
+
+// ====================================================
+// KEYBOARD — thêm Escape cho catalog xuyên việt
+// ====================================================
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape' && document.getElementById('jnCatalog')?.classList.contains('active')) {
+    closeJnCatalog();
+  }
+});
