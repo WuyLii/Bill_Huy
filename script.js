@@ -760,8 +760,13 @@ async function confirmDeleteMemory(id) {
 // ====================================================
 function formatDate(d) {
   if (!d) return '';
-  try { return new Date(d + 'T00:00:00+07:00').toLocaleDateString('vi-VN', { day: '2-digit', month: 'long', year: 'numeric', timeZone: 'Asia/Ho_Chi_Minh' }); }
-  catch(e) { return d; }
+  try {
+    const dt = new Date(d + 'T00:00:00+07:00');
+    const day   = String(dt.getUTCDate()).padStart(2, '0');
+    const month = String(dt.getUTCMonth() + 1).padStart(2, '0');
+    const year  = dt.getUTCFullYear();
+    return `${day}/${month}/${year}`;
+  } catch(e) { return d; }
 }
 
 function getTodayVN() {
