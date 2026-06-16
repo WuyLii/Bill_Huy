@@ -135,16 +135,37 @@ const AppState = {
 async function loadMemoriesFromSupabase() {
   try {
     const rows = await SupabaseAdapter.getAllMemories();
-    AppState.memories = rows.map(r => ({
-      id: String(r.id),
-      supabaseId: r.id,
-      title: r.title || '',
-      date: r.date || (r.created_at ? r.created_at.substring(0, 10) : ''),
-      description: r.description || '',
-      mediaType: r.media_type || 'image',
-      mediaData: r.media_url || null,
-      createdAt: r.created_at,
-    }));
+    AppState.memories = rows.map(r => {
+      // r.date from Supabase is always a plain "yyyy-mm-dd" string (no time, no timezone).
+      // Never pass it through `new Date()` — that interprets it as UTC midnight and can
+      // shift by a day when the browser is in a non-UTC timezone (including UTC+7 Vietnam).
+      // Instead we handle it purely as a string.
+      let dateIso = '';
+      if (r.date) {
+        // Supabase date column returns "yyyy-mm-dd" — keep as-is
+        dateIso = String(r.date).substring(0, 10);
+      } else if (r.created_at) {
+        // Fallback: created_at is an ISO timestamp in UTC (e.g. "2025-07-01T17:00:00+00:00").
+        // Convert to Vietnam time (UTC+7) before extracting the date string,
+        // so a record created at 2025-07-01T18:30 UTC actually shows 02/07/2025 in VN.
+        const utcMs = new Date(r.created_at).getTime();
+        const vnDate = new Date(utcMs + 7 * 3600000); // shift to UTC+7
+        const y = vnDate.getUTCFullYear();
+        const mo = String(vnDate.getUTCMonth() + 1).padStart(2, '0');
+        const d  = String(vnDate.getUTCDate()).padStart(2, '0');
+        dateIso = `${y}-${mo}-${d}`;
+      }
+      return {
+        id: String(r.id),
+        supabaseId: r.id,
+        title: r.title || '',
+        date: dateIso,
+        description: r.description || '',
+        mediaType: r.media_type || 'image',
+        mediaData: r.media_url || null,
+        createdAt: r.created_at,
+      };
+    });
   } catch(e) {
     console.error('Lỗi tải kỷ niệm:', e);
     showToast('⚠️ Không thể tải dữ liệu!', 'error');
@@ -239,14 +260,23 @@ function initNavbar() {
 // ====================================================
 // ĐẾM NGÀY YÊU
 // ====================================================
+
+// Ngày bắt đầu yêu nhau — khai báo với offset +07:00 tường minh để
+// JavaScript hiểu đúng là midnight ngày 11/07/2025 theo giờ Việt Nam.
 const LOVE_START_DATE = new Date('2025-07-11T00:00:00+07:00');
 
-// Trả về thời điểm hiện tại tính theo múi giờ Việt Nam (UTC+7)
+/**
+ * Trả về thời điểm hiện tại dưới dạng Date nhưng "dịch" sang UTC+7.
+ * Cách làm: lấy timestamp hiện tại (UTC) rồi cộng thêm 7 tiếng,
+ * sau đó dùng getUTC* để đọc các thành phần — không phụ thuộc vào
+ * múi giờ của trình duyệt người dùng.
+ */
 function nowVN() {
-  const now = new Date();
-  // Offset của VN so với UTC là +7 giờ (luôn cố định, không đổi giờ mùa hè)
+  // getTimezoneOffset() trả số phút lệch (dương = sau UTC), nên:
+  // utcMs = timestamp UTC thuần
+  const now   = new Date();
   const utcMs = now.getTime() + now.getTimezoneOffset() * 60000;
-  return new Date(utcMs + 7 * 3600000);
+  return new Date(utcMs + 7 * 3600000); // +7h → giờ Việt Nam
 }
 
 function updateLoveCounter() {
@@ -661,8 +691,8 @@ async function saveMemory() {
   const description    = document.getElementById('memoryDescription').value.trim();
 
   if (!title) { showToast('⚠️ Vui lòng nhập tiêu đề!', 'error'); document.getElementById('memoryTitle').focus(); return; }
-  if (!dateDisplay) { showToast('⚠️ Vui lòng nhập ngày (dd/mm/yyyy)!', 'error'); return; }
-  if (!isValidDisplayDate(dateDisplay)) { showToast('⚠️ Ngày không đúng định dạng dd/mm/yyyy!', 'error'); document.getElementById('memoryDate').focus(); return; }
+  if (!dateDisplay) { showToast('⚠️ Vui lòng nhập ngày (dd/mm/yyyy)!', 'error'); document.getElementById('memoryDate').focus(); return; }
+  if (!isValidDisplayDate(dateDisplay)) { showToast('⚠️ Ngày không hợp lệ! Vui lòng nhập theo dạng dd/mm/yyyy (ví dụ: 02/07/2025)', 'error'); document.getElementById('memoryDate').focus(); return; }
   const date = displayToIso(dateDisplay);
   if (!AppState.pendingFiles.length && !AppState.existingMedia.length && !AppState.editingId) {
     showToast('⚠️ Vui lòng chọn ít nhất 1 ảnh hoặc video!', 'error'); return;
@@ -758,36 +788,58 @@ async function confirmDeleteMemory(id) {
 }
 
 // ====================================================
-// HELPER FUNCTIONS — NGÀY THÁNG (KHÔNG DÙNG Date object để tránh lệch múi giờ)
+// HELPER FUNCTIONS — NGÀY THÁNG
+// ── NGUYÊN TẮC QUAN TRỌNG ──────────────────────────
+// Tất cả ngày tháng đều được xử lý dưới dạng CHUỖI thuần túy (yyyy-mm-dd hoặc dd/mm/yyyy).
+// KHÔNG BAO GIỜ dùng `new Date("yyyy-mm-dd")` để parse — JavaScript sẽ hiểu là
+// UTC midnight và convert sang giờ local (UTC+7), làm lệch ngày 1 ngày.
 // ====================================================
 
-// yyyy-mm-dd → dd/mm/yyyy  (tách chuỗi trực tiếp, không qua Date)
+/**
+ * yyyy-mm-dd → dd/mm/yyyy  (xử lý chuỗi, không qua Date)
+ */
 function formatDate(d) {
   if (!d) return '';
   const m = String(d).match(/^(\d{4})-(\d{2})-(\d{2})/);
   return m ? `${m[3]}/${m[2]}/${m[1]}` : String(d);
 }
 
-// yyyy-mm-dd → dd/mm/yyyy  (dùng để set vào input text)
+/**
+ * yyyy-mm-dd → dd/mm/yyyy  (alias, dùng để set vào input text)
+ */
 function isoToDisplay(iso) {
   return formatDate(iso);
 }
 
-// dd/mm/yyyy → yyyy-mm-dd  (để lưu vào Supabase)
+/**
+ * dd/mm/yyyy → yyyy-mm-dd  (để lưu vào Supabase)
+ * Ví dụ: "02/07/2025" → "2025-07-02"
+ */
 function displayToIso(display) {
   if (!display) return '';
   const m = String(display).match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
-  return m ? `${m[3]}-${m[2]}-${m[1]}` : display;
+  if (!m) return display; // trả lại nguyên nếu không khớp
+  return `${m[3]}-${m[2]}-${m[1]}`;
 }
 
-// Validate đúng dd/mm/yyyy
+/**
+ * Kiểm tra định dạng dd/mm/yyyy và tính hợp lệ của ngày tháng năm
+ */
 function isValidDisplayDate(val) {
-  return /^\d{2}\/\d{2}\/\d{4}$/.test(val);
+  if (!/^\d{2}\/\d{2}\/\d{4}$/.test(val)) return false;
+  const [dd, mm, yyyy] = val.split('/').map(Number);
+  if (mm < 1 || mm > 12) return false;
+  if (dd < 1 || dd > 31) return false;
+  // Kiểm tra số ngày trong tháng (kể cả năm nhuận)
+  const daysInMonth = new Date(yyyy, mm, 0).getDate(); // tháng mm, ngày 0 = ngày cuối tháng mm-1
+  return dd <= daysInMonth;
 }
 
-// Ngày hôm nay theo giờ VN, trả dd/mm/yyyy (tách chuỗi, không qua Date constructor)
+/**
+ * Trả về ngày hôm nay theo giờ Việt Nam (UTC+7) dưới dạng dd/mm/yyyy.
+ * Dùng toLocaleDateString với en-CA (cho ra yyyy-mm-dd) rồi tách chuỗi — không qua Date constructor.
+ */
 function getTodayVN() {
-  // toLocaleDateString với en-CA cho yyyy-mm-dd, sau đó tách chuỗi
   const iso = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' });
   return formatDate(iso);
 }
