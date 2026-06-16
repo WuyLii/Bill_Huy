@@ -1397,7 +1397,6 @@ function createJourneyStop(ev, index) {
     </div>
     <div class="jn-stop-pin"><div class="jn-stop-pin-inner">📍</div></div>
     <div class="jn-stop-spacer"></div>
-    <div class="jn-stop-connector"></div>
   `;
   return stop;
 }
