@@ -367,6 +367,8 @@ async function loadMemoriesFromSupabase() {
 
   renderTimeline();
 
+  initYearFilter();
+
   renderAdminMemoryList();
 
 }
@@ -677,6 +679,93 @@ function renderTimeline() {
     });
   }
   setTimeout(() => recalcRowCycle(), 800);
+
+}
+
+
+// ====================================================
+
+// TIMELINE YEAR FILTER
+
+// ====================================================
+
+function initYearFilter() {
+
+  const select = document.getElementById('yearFilter');
+
+  if (!select) return;
+
+  
+
+  const years = new Set();
+
+  AppState.memories.forEach(m => {
+
+    if (m.date) {
+
+      const year = m.date.split('-')[0];
+
+      years.add(year);
+
+    }
+
+  });
+
+  
+
+  const sortedYears = Array.from(years).sort().reverse();
+
+  
+
+  // Giữ lại option "Tất cả", xóa các option cũ
+
+  while (select.options.length > 1) select.remove(1);
+
+  
+
+  sortedYears.forEach(year => {
+
+    const opt = document.createElement('option');
+
+    opt.value = year;
+
+    opt.textContent = year;
+
+    select.appendChild(opt);
+
+  });
+
+}
+
+
+function filterTimelineByYear(year) {
+
+  const container = document.getElementById('timelineContainer');
+
+  if (!container) return;
+
+  
+
+  container.querySelectorAll('.timeline-item').forEach(item => {
+
+    const itemYear = item.dataset.id ? 
+
+      AppState.memories.find(m => m.id === item.dataset.id)?.date?.split('-')[0] : '';
+
+    
+
+    if (year === 'all' || itemYear === year) {
+
+      item.style.display = '';
+
+    } else {
+
+      item.style.display = 'none';
+
+    }
+
+  });
+
 }
 
 
@@ -1600,6 +1689,24 @@ function formatDate(d) {
 function isoToDisplay(iso) {
 
   return formatDate(iso);
+
+}
+
+
+/**
+
+ * Định dạng khoảng thời gian cho Journey Events
+ * start_date: "2025-07-01", end_date: "2025-07-05" → "01/07/2025 - 05/07/2025"
+ * Nếu chỉ có 1 ngày → "01/07/2025"
+ */
+
+function formatDateRange(startDate, endDate) {
+
+  if (!startDate) return '';
+
+  if (!endDate || startDate === endDate) return formatDate(startDate);
+
+  return `${formatDate(startDate)} - ${formatDate(endDate)}`;
 
 }
 
@@ -2606,6 +2713,10 @@ async function loadJourneyFromSupabase() {
 
       date: r.date ? String(r.date).substring(0, 10) : '',
 
+      start_date: r.start_date ? String(r.start_date).substring(0, 10) : '',
+
+      end_date: r.end_date ? String(r.end_date).substring(0, 10) : '',
+
       description: r.description || '',
 
       mediaType: r.media_type || 'image',
@@ -2705,7 +2816,7 @@ function createJourneyStop(ev, index) {
 
         <div class="jn-card-meta">
 
-          <span class="jn-card-date">${formatDate(ev.date)}</span>
+          <span class="jn-card-date">${formatDateRange(ev.start_date || ev.date, ev.end_date)}</span>
 
           ${locationTag}
 
@@ -2768,7 +2879,7 @@ async function openJnCatalog(id) {
 
   document.getElementById('jnCatalogTitle').textContent    = ev.title;
 
-  document.getElementById('jnCatalogDate').textContent     = formatDate(ev.date);
+  document.getElementById('jnCatalogDate').textContent     = formatDateRange(ev.start_date || ev.date, ev.end_date);
 
   document.getElementById('jnCatalogLocation').textContent = ev.location || '';
 
@@ -2949,7 +3060,11 @@ function openAddJourneyModal() {
 
   document.getElementById('jnLocation').value = '';
 
-  document.getElementById('jnDate').value = getTodayVN();
+  const todayVN = getTodayVN();
+
+  document.getElementById('jnDateStart').value = todayVN;
+
+  document.getElementById('jnDateEnd').value = '';
 
   document.getElementById('jnDescription').value = '';
 
@@ -2980,7 +3095,9 @@ async function openEditJnModal(id) {
 
   document.getElementById('jnLocation').value = ev.location || '';
 
-  document.getElementById('jnDate').value = isoToDisplay(ev.date);
+  document.getElementById('jnDateStart').value = isoToDisplay(ev.start_date || ev.date || '');
+
+  document.getElementById('jnDateEnd').value = isoToDisplay(ev.end_date || '');
 
   document.getElementById('jnDescription').value = ev.description || '';
 
@@ -3110,20 +3227,24 @@ function resetJnMediaState() {
 
 async function saveJnMemory() {
 
-  const title       = document.getElementById('jnTitle').value.trim();
+  const title         = document.getElementById('jnTitle').value.trim();
 
-  const location    = document.getElementById('jnLocation').value.trim();
+  const location      = document.getElementById('jnLocation').value.trim();
 
-  const dateDisplay = document.getElementById('jnDate').value.trim();
+  const dateStartDisp = document.getElementById('jnDateStart').value.trim();
 
-  const description = document.getElementById('jnDescription').value.trim();
+  const dateEndDisp   = document.getElementById('jnDateEnd').value.trim();
+
+  const description   = document.getElementById('jnDescription').value.trim();
 
 
   if (!title) { showToast('⚠️ Vui lòng nhập tên địa điểm!', 'error'); return; }
 
-  if (!dateDisplay || !isValidDisplayDate(dateDisplay)) { showToast('⚠️ Ngày không hợp lệ! (dd/mm/yyyy)', 'error'); return; }
+  if (!dateStartDisp || !isValidDisplayDate(dateStartDisp)) { showToast('⚠️ Ngày bắt đầu không hợp lệ! (dd/mm/yyyy)', 'error'); return; }
 
-  const date = displayToIso(dateDisplay);
+  const start_date = displayToIso(dateStartDisp);
+
+  const end_date = dateEndDisp ? displayToIso(dateEndDisp) : '';
 
 
   const saveBtn = document.querySelector('.jn-modal-footer .btn-jn-primary');
@@ -3173,7 +3294,7 @@ async function saveJnMemory() {
 
       const ev = AppState.journey.find(e => e.id === AppState.jnEditingId);
 
-      await SupabaseAdapter.updateJourney(ev.supabaseId, { title, location, date, description, media_url: first.url, media_type: first.type });
+      await SupabaseAdapter.updateJourney(ev.supabaseId, { title, location, start_date, end_date, description, media_url: first.url, media_type: first.type });
 
       await SupabaseAdapter.deleteJnMedia(ev.supabaseId);
 
@@ -3183,7 +3304,7 @@ async function saveJnMemory() {
 
     } else {
 
-      const row = await SupabaseAdapter.insertJourney({ title, location, date, description, media_url: first.url, media_type: first.type });
+      const row = await SupabaseAdapter.insertJourney({ title, location, start_date, end_date, description, media_url: first.url, media_type: first.type });
 
       if (allMedia.length > 1) await SupabaseAdapter.insertJnMedia(row.id, allMedia.slice(1));
 
