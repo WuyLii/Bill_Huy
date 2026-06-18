@@ -373,6 +373,33 @@ async function loadMemoriesFromSupabase() {
 
 }
 
+// ====================================================
+
+// MOBILE NAVIGATION - SWITCH TABS
+
+// ====================================================
+
+function switchMobileTab(tabName) {
+  // Update active button
+  document.querySelectorAll('.mbn-tab').forEach(tab => {
+    tab.classList.remove('active');
+  });
+  document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
+
+  // Hide all sections and show the active one
+  document.querySelectorAll('.love-counter-section, .timeline-section, .photobooth-section, .journey-section').forEach(section => {
+    section.classList.remove('active');
+  });
+  document.getElementById(tabName).classList.add('active');
+
+  // Scroll to top
+  window.scrollTo(0, 0);
+}
+
+// Initialize on load
+window.addEventListener('DOMContentLoaded', () => {
+  switchMobileTab('love-counter');
+});
 
 // ====================================================
 
