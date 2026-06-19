@@ -419,6 +419,18 @@ window.addEventListener('DOMContentLoaded', () => {
   const isMobile = window.innerWidth <= 768;
   if (!isMobile) {
     switchMobileTab('love-counter');
+  } else {
+    // Trên mobile: chỉ chuẩn bị sẵn trạng thái tab đầu tiên,
+    // KHÔNG hiện bottom nav / ẩn hero — chỉ làm vậy khi người dùng bấm "Xem Kỷ Niệm"
+    currentTabIndex = 0;
+    document.querySelectorAll('.mbn-tab').forEach(tab => tab.classList.remove('active'));
+    const firstTab = document.querySelector(`[data-tab="${mobileTabOrder[0]}"]`);
+    if (firstTab) firstTab.classList.add('active');
+    document.querySelectorAll('.love-counter-section, .timeline-section, .photobooth-section, .journey-section').forEach(section => {
+      section.classList.remove('active');
+    });
+    const firstSection = document.getElementById(mobileTabOrder[0]);
+    if (firstSection) firstSection.classList.add('active');
   }
   initSwipeDetection();
 });
@@ -426,32 +438,63 @@ window.addEventListener('DOMContentLoaded', () => {
 // Swipe detection for mobile
 function initSwipeDetection() {
   let touchStartX = 0;
+  let touchStartY = 0;
   let touchEndX = 0;
+  let touchEndY = 0;
+  let swipeAllowed = false;
+
+  // Các overlay/modal/lightbox đang mở → tuyệt đối không đổi tab khi vuốt
+  function isAnyOverlayOpen() {
+    const ids = ['modalOverlay', 'lightbox', 'jnCatalog', 'pbCatalog', 'adminPanel', 'memoryModal', 'jnModal', 'pbModal'];
+    return ids.some(id => {
+      const el = document.getElementById(id);
+      return el && el.classList.contains('active');
+    });
+  }
 
   document.addEventListener('touchstart', (e) => {
+    // Chỉ cho phép vuốt đổi tab khi đã ở màn hình mobile-nav (đã bấm vào trong),
+    // và không có modal/lightbox/catalog nào đang mở phía trên
+    const isMobile = window.innerWidth <= 768;
+    swipeAllowed = isMobile &&
+      document.body.classList.contains('mobile-nav-revealed') &&
+      !isAnyOverlayOpen();
+
+    if (!swipeAllowed) return;
+
     touchStartX = e.changedTouches[0].screenX;
+    touchStartY = e.changedTouches[0].screenY;
   }, false);
 
   document.addEventListener('touchend', (e) => {
+    if (!swipeAllowed) return;
+    // Phải kiểm tra lại lúc kết thúc vuốt, phòng trường hợp modal vừa mở ra trong lúc vuốt
+    if (isAnyOverlayOpen()) return;
+
     touchEndX = e.changedTouches[0].screenX;
+    touchEndY = e.changedTouches[0].screenY;
     detectSwipe();
   }, false);
 
   function detectSwipe() {
-    const swipeThreshold = 50; // Minimum distance for swipe
-    const diff = touchStartX - touchEndX;
+    const swipeThreshold = 60; // Khoảng cách tối thiểu để tính là vuốt
+    const diffX = touchStartX - touchEndX;
+    const diffY = touchStartY - touchEndY;
 
-    if (Math.abs(diff) > swipeThreshold) {
-      if (diff > 0) {
-        // Swiped LEFT - go to next tab
-        if (currentTabIndex < mobileTabOrder.length - 1) {
-          switchMobileTab(mobileTabOrder[currentTabIndex + 1]);
-        }
-      } else {
-        // Swiped RIGHT - go to previous tab
-        if (currentTabIndex > 0) {
-          switchMobileTab(mobileTabOrder[currentTabIndex - 1]);
-        }
+    // Chỉ tính là vuốt ngang nếu khoảng cách ngang lớn hơn rõ rệt khoảng cách dọc
+    // (tránh việc cuộn dọc trang bị nhận lầm thành vuốt đổi tab)
+    if (Math.abs(diffX) <= swipeThreshold) return;
+    if (Math.abs(diffX) < Math.abs(diffY) * 1.5) return;
+
+    if (diffX > 0) {
+      // Vuốt SANG TRÁI - chuyển tab kế tiếp
+      if (currentTabIndex < mobileTabOrder.length - 1) {
+        switchMobileTab(mobileTabOrder[currentTabIndex + 1]);
+      }
+    } else {
+      // Vuốt SANG PHẢI - chuyển tab trước đó
+      if (currentTabIndex > 0) {
+        switchMobileTab(mobileTabOrder[currentTabIndex - 1]);
       }
     }
   }
