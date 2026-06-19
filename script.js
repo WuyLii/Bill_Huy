@@ -3804,8 +3804,64 @@ function closePbCatalog() {
       document.body.classList.add("gate-active");
       spawnParticles();
       spawnPetals();
+      initGateMusic();
     }
   }
+
+  // ---- Nhạc nền màn hình khoá ----
+  function initGateMusic() {
+    const music = document.getElementById("gateMusic");
+    const toggle = document.getElementById("gateMusicToggle");
+    const icon = document.getElementById("gateMusicIcon");
+    if (!music) return;
+
+    function setPlayingUI(isPlaying) {
+      if (icon) icon.textContent = isPlaying ? "🔊" : "🔇";
+      if (toggle) toggle.classList.toggle("playing", isPlaying);
+    }
+
+    // Thử tự phát ngay khi vào trang
+    music.volume = 0.55;
+    const tryPlay = () => music.play().then(() => setPlayingUI(true)).catch(() => setPlayingUI(false));
+    tryPlay();
+
+    // Nếu trình duyệt chặn autoplay có âm thanh -> tự phát ngay khi
+    // người dùng chạm/click/gõ phím lần đầu tiên trên trang
+    const resumeOnInteract = () => {
+      if (music.paused) tryPlay();
+      document.removeEventListener("click", resumeOnInteract);
+      document.removeEventListener("touchstart", resumeOnInteract);
+      document.removeEventListener("keydown", resumeOnInteract);
+    };
+    document.addEventListener("click", resumeOnInteract, { once: true });
+    document.addEventListener("touchstart", resumeOnInteract, { once: true });
+    document.addEventListener("keydown", resumeOnInteract, { once: true });
+
+    // Nút bật/tắt thủ công
+    window.toggleGateMusic = function () {
+      if (music.paused) {
+        tryPlay();
+      } else {
+        music.pause();
+        setPlayingUI(false);
+      }
+    };
+  }
+
+  // ---- Fade-out & dừng nhạc nền khi mở khoá ----
+  function fadeOutGateMusic() {
+    const music = document.getElementById("gateMusic");
+    if (!music || music.paused) return;
+    const step = 0.05;
+    const fade = setInterval(() => {
+      if (music.volume - step <= 0) {
+        music.volume = 0;
+        music.pause();
+        clearInterval(fade);
+      } else {
+        music.volume -= step;
+      }
+    }, 60);
 
   // ---- Ẩn gate ngay lập tức (session đã unlock) ----
   function hideGateInstant() {
@@ -3947,6 +4003,7 @@ function closePbCatalog() {
     }
 
     // Đúng mật mã -> mở cửa
+    fadeOutGateMusic();
     performOpenAnimation();
   };
 
@@ -3995,6 +4052,7 @@ function closePbCatalog() {
     document.body.classList.remove("gate-unlocked");
     // Reset mobile: về lại hero
     document.body.classList.remove("mobile-nav-revealed");
+    initGateMusic();
   };
 
   // ---- Khởi động khi DOM sẵn sàng ----
