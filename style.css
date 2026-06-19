@@ -3714,15 +3714,15 @@ body {
     right: 12px;
     bottom: 0;
     height: auto;
-    background: linear-gradient(135deg, rgba(214, 36, 110, 0.95) 0%, rgba(232, 74, 56, 0.95) 100%);
-    backdrop-filter: blur(24px) saturate(160%);
-    -webkit-backdrop-filter: blur(24px) saturate(160%);
-    border: 1px solid rgba(255, 255, 255, 0.18);
+    background: linear-gradient(135deg, rgba(214, 36, 110, 0.42) 0%, rgba(232, 74, 56, 0.42) 100%);
+    backdrop-filter: blur(28px) saturate(180%);
+    -webkit-backdrop-filter: blur(28px) saturate(180%);
+    border: 1px solid rgba(255, 255, 255, 0.22);
     border-radius: 26px;
     box-shadow:
-      0 -2px 24px rgba(180, 20, 70, 0.35),
-      0 14px 40px rgba(180, 20, 70, 0.4),
-      inset 0 1px 0 rgba(255, 255, 255, 0.12);
+      0 -2px 24px rgba(180, 20, 70, 0.22),
+      0 14px 40px rgba(180, 20, 70, 0.25),
+      inset 0 1px 0 rgba(255, 255, 255, 0.16);
     justify-content: space-around;
     align-items: center;
     gap: 4px;
