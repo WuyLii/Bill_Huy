@@ -3771,10 +3771,10 @@ body {
     right: 12px;
     bottom: 0;
     height: auto;
-    background: linear-gradient(135deg, rgba(214, 36, 110, 0.42) 0%, rgba(232, 74, 56, 0.42) 100%);
+    background: linear-gradient(135deg, rgba(214, 36, 110, 0.12) 0%, rgba(232, 74, 56, 0.12) 100%);
     backdrop-filter: blur(28px) saturate(180%);
     -webkit-backdrop-filter: blur(28px) saturate(180%);
-    border: 1px solid rgba(255, 255, 255, 0.22);
+    border: 1px solid rgba(255, 255, 255, 0.14);
     border-radius: 26px;
     box-shadow:
       0 -2px 24px rgba(180, 20, 70, 0.22),
