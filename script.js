@@ -526,7 +526,7 @@ async function initBackgroundVideo() {
 
   const src = heroVideo.querySelector('source')?.src || '';
 
-  if (src.includes('nen(test).mp4') || src.includes('background.mp4')) {
+  if (!src || src.includes('nen(test).mp4') || src.includes('background.mp4')) {
 
     document.getElementById('videoBg')?.classList.add('no-video');
 
