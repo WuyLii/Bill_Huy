@@ -2,15 +2,36 @@
 
 // FIX CHIỀU CAO MÀN HÌNH THỰC TẾ (tránh dư khoảng đen dưới
 // cùng do thanh địa chỉ trình duyệt mobile ẩn/hiện làm lệch
-// các đơn vị vh/dvh trong lúc đang chuyển động)
+// các đơn vị vh/dvh trong lúc đang chuyển động, và do lỗi đo
+// sai chiều cao khi mở web ở chế độ "Add to Home Screen" /
+// standalone trên iOS Safari)
 
 // ====================================================
 
 (function () {
 
+  const isStandalone =
+    window.navigator.standalone === true ||
+    window.matchMedia('(display-mode: standalone)').matches;
+
+  if (isStandalone) {
+
+    document.documentElement.classList.add('is-standalone');
+
+  }
+
   function setAppHeight() {
 
-    const h = (window.visualViewport ? window.visualViewport.height : window.innerHeight);
+    // screen.height là chiều cao vật lý thật của màn hình, đáng tin cậy
+    // hơn innerHeight/visualViewport.height trong chế độ standalone trên
+    // iOS (vốn hay đo thiếu một khoảng do thanh trạng thái).
+    let h = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+
+    if (isStandalone && window.screen && window.screen.height) {
+
+      h = Math.max(h, window.screen.height);
+
+    }
 
     document.documentElement.style.setProperty('--app-height', h + 'px');
 
@@ -18,9 +39,21 @@
 
   setAppHeight();
 
+  // Trên iOS standalone, kích thước đo lần đầu (ngay lúc app vừa mở)
+  // đôi khi chưa chuẩn — đo lại vài lần sau đó để chắc chắn.
+  [0, 50, 150, 400, 1000].forEach((delay) => setTimeout(setAppHeight, delay));
+
   window.addEventListener('resize', setAppHeight);
 
-  window.addEventListener('orientationchange', setAppHeight);
+  window.addEventListener('orientationchange', () => setTimeout(setAppHeight, 200));
+
+  window.addEventListener('pageshow', setAppHeight);
+
+  document.addEventListener('visibilitychange', () => {
+
+    if (document.visibilityState === 'visible') setAppHeight();
+
+  });
 
   if (window.visualViewport) {
 
