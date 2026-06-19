@@ -858,17 +858,17 @@ body {
 
     transparent 0%,
 
-    rgba(26, 10, 34, 0.55) 20%,
+    rgba(26, 10, 34, 0.92) 28%,
 
-    rgba(45, 20, 60, 0.65) 50%,
+    rgba(45, 20, 60, 0.92) 55%,
 
-    rgba(26, 10, 34, 0.55) 80%,
+    rgba(26, 10, 34, 0.95) 80%,
 
-    transparent 100%
+    rgba(26, 10, 34, 0.97) 100%
 
   );
 
-  backdrop-filter: blur(2px);
+  backdrop-filter: blur(6px);
 
 }
 
@@ -1331,19 +1331,19 @@ body {
 
     180deg,
 
-    transparent 0%,
+    rgba(26, 10, 34, 0.97) 0%,
 
-    rgba(26, 10, 34, 0.7) 10%,
+    rgba(26, 10, 34, 0.93) 10%,
 
-    rgba(26, 10, 34, 0.8) 50%,
+    rgba(34, 16, 46, 0.95) 50%,
 
-    rgba(26, 10, 34, 0.7) 90%,
+    rgba(26, 10, 34, 0.95) 90%,
 
-    transparent 100%
+    rgba(26, 10, 34, 0.97) 100%
 
   );
 
-  backdrop-filter: blur(4px);
+  backdrop-filter: blur(6px);
 
 }
 
@@ -4210,19 +4210,19 @@ body {
 
     180deg,
 
-    transparent 0%,
+    rgba(26, 10, 34, 0.97) 0%,
 
-    rgba(40, 8, 4, 0.55) 15%,
+    rgba(34, 12, 10, 0.94) 16%,
 
-    rgba(60, 18, 8, 0.65) 50%,
+    rgba(58, 18, 9, 0.93) 50%,
 
-    rgba(40, 8, 4, 0.55) 85%,
+    rgba(34, 12, 10, 0.94) 84%,
 
-    transparent 100%
+    rgba(26, 10, 34, 0.97) 100%
 
   );
 
-  backdrop-filter: blur(3px);
+  backdrop-filter: blur(6px);
 
 }
 
@@ -4745,19 +4745,19 @@ body {
 
     180deg,
 
-    transparent 0%,
+    rgba(26, 10, 34, 0.97) 0%,
 
-    rgba(4, 18, 40, 0.6) 15%,
+    rgba(10, 16, 38, 0.94) 16%,
 
-    rgba(8, 28, 60, 0.7) 50%,
+    rgba(8, 28, 60, 0.93) 50%,
 
-    rgba(4, 18, 40, 0.6) 85%,
+    rgba(10, 16, 38, 0.94) 84%,
 
-    transparent 100%
+    rgba(26, 10, 34, 0.97) 100%
 
   );
 
-  backdrop-filter: blur(3px);
+  backdrop-filter: blur(6px);
 
 }
 
